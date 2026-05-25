@@ -287,10 +287,11 @@ export default function App() {
   const [relFunc, setRelFunc] = useState("");
   const [fServico, setFServico] = useState({ nome: "", valor: "" });
   const [editServico, setEditServico] = useState(null);
-  const [fCliente, setFCliente] = useState({ nome: "", sobrenome: "", cpf: "", telefone: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
+  const [fCliente, setFCliente] = useState({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
   const [fOrdem, setFOrdem] = useState({ clienteId: "", funcionarioId: "", data: "", hora: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
   const [ordemEditando, setOrdemEditando] = useState(null);
   const [ordemAvancando, setOrdemAvancando] = useState(null);
+  const [clienteEditando, setClienteEditando] = useState(null);
 
   const funcionarios = USERS.filter(u => u.perfil === "funcionario");
 
@@ -302,26 +303,47 @@ export default function App() {
 
   function totalOrdem(o) { return o.servicos.reduce((s, sv) => s + sv.qtd * Number(sv.valor), 0); }
   function openModal(tipo) { setModal(tipo); setErros({}); }
-  function closeModal() { setModal(null); setErros({}); setEditServico(null); setOrdemEditando(null); setOrdemAvancando(null); }
+  function closeModal() { setModal(null); setErros({}); setEditServico(null); setOrdemEditando(null); setOrdemAvancando(null); setClienteEditando(null); }
   function abrirConfirmarAvanco(id) { setOrdemAvancando(id); setModal("confirmarAvanco"); }
 
-  function salvarCliente() {
+  function validarFCliente(excluirId = null) {
     const e = {};
     if (!fCliente.nome) e.nome = "Obrigatório";
     if (!fCliente.sobrenome) e.sobrenome = "Obrigatório";
     if (!fCliente.cpf) e.cpf = "CPF é obrigatório";
     else if (!validarCPF(fCliente.cpf)) e.cpf = "CPF inválido. Verifique os dígitos.";
-    else if (clientes.find(c => c.cpf === fCliente.cpf)) e.cpf = "Este CPF já está registrado.";
+    else if (clientes.find(c => c.cpf === fCliente.cpf && c.id !== excluirId)) e.cpf = "Este CPF já está registrado.";
     if (!fCliente.telefone) e.telefone = "Obrigatório";
     if (!fCliente.rua) e.rua = "Obrigatório";
     if (!fCliente.numero) e.numero = "Obrigatório";
     if (!fCliente.bairro) e.bairro = "Obrigatório";
     if (!fCliente.cidade) e.cidade = "Obrigatório";
     if (!fCliente.estado) e.estado = "Obrigatório";
-    if (!fCliente.cep) e.cep = "Obrigatório";
+    return e;
+  }
+
+  function salvarCliente() {
+    const e = validarFCliente();
     if (Object.keys(e).length) { setErros(e); return; }
     setClientes(p => [...p, { ...fCliente, id: Date.now(), ativo: true }]);
-    setFCliente({ nome: "", sobrenome: "", cpf: "", telefone: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
+    setFCliente({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
+    closeModal();
+  }
+
+  function reativarCliente(id) { setClientes(p => p.map(c => c.id === id ? { ...c, ativo: true } : c)); }
+
+  function abrirEdicaoCliente(c) {
+    setClienteEditando(c.id);
+    setFCliente({ nome: c.nome, sobrenome: c.sobrenome, cpf: c.cpf, telefone: c.telefone, email: c.email || "", rua: c.rua, numero: c.numero, bairro: c.bairro, cidade: c.cidade, estado: c.estado, cep: c.cep || "" });
+    setErros({});
+    setModal("editarCliente");
+  }
+
+  function salvarEdicaoCliente() {
+    const e = validarFCliente(clienteEditando);
+    if (Object.keys(e).length) { setErros(e); return; }
+    setClientes(p => p.map(c => c.id === clienteEditando ? { ...c, ...fCliente } : c));
+    setFCliente({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
     closeModal();
   }
 
@@ -614,7 +636,11 @@ export default function App() {
                         <td>{c.telefone}</td>
                         <td>{c.cidade} / {c.estado}</td>
                         <td><span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span></td>
-                        <td>{c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}</td>
+                        <td style={{ display: "flex", gap: 8 }}>
+                          {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>}
+                          {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
+                          {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -630,11 +656,11 @@ export default function App() {
                   </div>
                   <div className="m-card-sub">{c.cpf}</div>
                   <div className="m-card-sub">{c.telefone} · {c.cidade}/{c.estado}</div>
-                  {c.ativo && (
-                    <div className="m-card-actions">
-                      <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>
-                    </div>
-                  )}
+                  <div className="m-card-actions">
+                    {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>}
+                    {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
+                    {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -862,7 +888,9 @@ export default function App() {
             <FInput label="CPF" required placeholder="000.000.000-00" value={fCliente.cpf} onChange={e => setFCliente(p => ({ ...p, cpf: fmtCPF(e.target.value) }))} error={erros.cpf} />
             <FInput label="Telefone" required placeholder="(65) 99999-0000" value={fCliente.telefone} onChange={e => setFCliente(p => ({ ...p, telefone: e.target.value }))} error={erros.telefone} />
           </div>
+          <FInput label="E-mail" type="email" placeholder="cliente@email.com" value={fCliente.email} onChange={e => setFCliente(p => ({ ...p, email: e.target.value }))} />
           <div className="section-sep">Endereço</div>
+          <FInput label={<>CEP <span style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af", letterSpacing: 0 }}>— Na versão final ao digitar o CEP puxa os dados de endereço</span></>} placeholder="00000-000" value={fCliente.cep} onChange={e => setFCliente(p => ({ ...p, cep: e.target.value }))} />
           <div className="form-row cols2">
             <FInput label="Rua" required value={fCliente.rua} onChange={e => setFCliente(p => ({ ...p, rua: e.target.value }))} error={erros.rua} />
             <FInput label="Número" required value={fCliente.numero} onChange={e => setFCliente(p => ({ ...p, numero: e.target.value }))} error={erros.numero} />
@@ -872,7 +900,32 @@ export default function App() {
             <FInput label="Cidade" required value={fCliente.cidade} onChange={e => setFCliente(p => ({ ...p, cidade: e.target.value }))} error={erros.cidade} />
             <FInput label="Estado" required placeholder="MT" value={fCliente.estado} onChange={e => setFCliente(p => ({ ...p, estado: e.target.value }))} error={erros.estado} />
           </div>
-          <FInput label="CEP" required value={fCliente.cep} onChange={e => setFCliente(p => ({ ...p, cep: e.target.value }))} error={erros.cep} />
+        </Modal>
+      )}
+
+      {/* MODAL EDITAR CLIENTE */}
+      {modal === "editarCliente" && (
+        <Modal title="Editar cliente" onClose={closeModal} footer={<><button className="btn-cancel-red" onClick={closeModal}>Cancelar</button><button className="btn-success" onClick={salvarEdicaoCliente}>Salvar alterações</button></>}>
+          <div className="form-row cols2">
+            <FInput label="Nome" required value={fCliente.nome} onChange={e => setFCliente(p => ({ ...p, nome: e.target.value }))} error={erros.nome} />
+            <FInput label="Sobrenome" required value={fCliente.sobrenome} onChange={e => setFCliente(p => ({ ...p, sobrenome: e.target.value }))} error={erros.sobrenome} />
+          </div>
+          <div className="form-row cols2">
+            <FInput label="CPF" required placeholder="000.000.000-00" value={fCliente.cpf} onChange={e => setFCliente(p => ({ ...p, cpf: fmtCPF(e.target.value) }))} error={erros.cpf} />
+            <FInput label="Telefone" required placeholder="(65) 99999-0000" value={fCliente.telefone} onChange={e => setFCliente(p => ({ ...p, telefone: e.target.value }))} error={erros.telefone} />
+          </div>
+          <FInput label="E-mail" type="email" placeholder="cliente@email.com" value={fCliente.email} onChange={e => setFCliente(p => ({ ...p, email: e.target.value }))} />
+          <div className="section-sep">Endereço</div>
+          <FInput label={<>CEP <span style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af", letterSpacing: 0 }}>— Na versão final ao digitar o CEP puxa os dados de endereço</span></>} placeholder="00000-000" value={fCliente.cep} onChange={e => setFCliente(p => ({ ...p, cep: e.target.value }))} />
+          <div className="form-row cols2">
+            <FInput label="Rua" required value={fCliente.rua} onChange={e => setFCliente(p => ({ ...p, rua: e.target.value }))} error={erros.rua} />
+            <FInput label="Número" required value={fCliente.numero} onChange={e => setFCliente(p => ({ ...p, numero: e.target.value }))} error={erros.numero} />
+          </div>
+          <div className="form-row cols3">
+            <FInput label="Bairro" required value={fCliente.bairro} onChange={e => setFCliente(p => ({ ...p, bairro: e.target.value }))} error={erros.bairro} />
+            <FInput label="Cidade" required value={fCliente.cidade} onChange={e => setFCliente(p => ({ ...p, cidade: e.target.value }))} error={erros.cidade} />
+            <FInput label="Estado" required placeholder="MT" value={fCliente.estado} onChange={e => setFCliente(p => ({ ...p, estado: e.target.value }))} error={erros.estado} />
+          </div>
         </Modal>
       )}
 
