@@ -88,6 +88,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-danger:hover{background:#fdeaea;border-color:#f0a0a0}
 .btn-advance{color:#1f7a3e;border-color:#b8dfc8;background:#fff}
 .btn-advance:hover{background:#e6f4ec;border-color:#8fceaa}
+.btn-edit{color:#fff;background:#1f7a3e;border-color:#1f7a3e;display:inline-flex;align-items:center;gap:4px}
+.btn-edit:hover{background:#186132;border-color:#186132}
 
 /* ── CARD / TABLE ── */
 .card{background:#fff;border-radius:12px;border:1px solid #e2e5ea;overflow:hidden}
@@ -195,6 +197,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .table-desktop{display:block}
   .mobile-list{display:none}
 }
+.btn-success{background:#1f7a3e;color:#fff;border:none;cursor:pointer;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:500;transition:background .15s;white-space:nowrap}
+.btn-success:hover{background:#186132}
+.btn-cancel-red{background:#b83232;color:#fff;border:none;cursor:pointer;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:500;transition:background .15s;white-space:nowrap}
+.btn-cancel-red:hover{background:#9c2929}
 `;
 
 function Badge({ status }) {
@@ -283,6 +289,8 @@ export default function App() {
   const [editServico, setEditServico] = useState(null);
   const [fCliente, setFCliente] = useState({ nome: "", sobrenome: "", cpf: "", telefone: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
   const [fOrdem, setFOrdem] = useState({ clienteId: "", funcionarioId: "", data: "", hora: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
+  const [ordemEditando, setOrdemEditando] = useState(null);
+  const [ordemAvancando, setOrdemAvancando] = useState(null);
 
   const funcionarios = USERS.filter(u => u.perfil === "funcionario");
 
@@ -294,7 +302,8 @@ export default function App() {
 
   function totalOrdem(o) { return o.servicos.reduce((s, sv) => s + sv.qtd * Number(sv.valor), 0); }
   function openModal(tipo) { setModal(tipo); setErros({}); }
-  function closeModal() { setModal(null); setErros({}); setEditServico(null); }
+  function closeModal() { setModal(null); setErros({}); setEditServico(null); setOrdemEditando(null); setOrdemAvancando(null); }
+  function abrirConfirmarAvanco(id) { setOrdemAvancando(id); setModal("confirmarAvanco"); }
 
   function salvarCliente() {
     const e = {};
@@ -334,6 +343,46 @@ export default function App() {
       servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor) })),
       endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`
     }]);
+    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
+    closeModal();
+  }
+
+  function abrirEdicaoOrdem(o) {
+    setOrdemEditando(o.id);
+    setFOrdem({
+      clienteId: String(o.clienteId),
+      funcionarioId: String(o.funcionarioId),
+      data: o.data,
+      hora: o.hora,
+      servicos: o.servicos.map(s => {
+        const pred = servicosAtivos.find(sv => sv.nome === s.nome);
+        return { servicoId: pred ? String(pred.id) : "__livre", nome: s.nome, qtd: s.qtd, valor: String(s.valor) };
+      })
+    });
+    setErros({});
+    setModal("editarOrdem");
+  }
+
+  function salvarEdicaoOrdem() {
+    const e = {};
+    if (!fOrdem.clienteId) e.clienteId = "Obrigatório";
+    if (!fOrdem.funcionarioId) e.funcionarioId = "Obrigatório";
+    if (!fOrdem.data) e.data = "Obrigatório";
+    if (!fOrdem.hora) e.hora = "Obrigatório";
+    else if (fOrdem.hora < "08:00" || fOrdem.hora > "18:00") e.hora = "Entre 08:00 e 18:00";
+    const svs = fOrdem.servicos.filter(s => s.nome && Number(s.valor) > 0);
+    if (!svs.length) e.servicos = "Adicione pelo menos um serviço com valor.";
+    if (Object.keys(e).length) { setErros(e); return; }
+    const cli = clientes.find(c => c.id === parseInt(fOrdem.clienteId));
+    setOrdens(p => p.map(o => o.id === ordemEditando ? {
+      ...o,
+      clienteId: parseInt(fOrdem.clienteId),
+      funcionarioId: parseInt(fOrdem.funcionarioId),
+      data: fOrdem.data,
+      hora: fOrdem.hora,
+      servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor) })),
+      endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`
+    } : o));
     setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
     closeModal();
   }
@@ -472,7 +521,7 @@ export default function App() {
           </div>
           <div className="topbar-right">
             <span className="user-chip">{user.nome}</span>
-            <button className="btn-logout" onClick={() => setUser(null)}>Sair</button>
+            <button className="btn-logout" onClick={() => setModal("confirmLogout")}>Sair</button>
           </div>
         </div>
 
@@ -486,7 +535,7 @@ export default function App() {
                 {aba === id && <div className="bnav-dot" />}
               </button>
             ))}
-            <button className="bnav-btn" onClick={() => setUser(null)}>
+            <button className="bnav-btn" onClick={() => setModal("confirmLogout")}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
@@ -662,8 +711,9 @@ export default function App() {
                           <td><Badge status={o.status} /></td>
                           <td style={{ display: "flex", gap: 6 }}>
                             <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver</button>
-                            {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => avancarStatus(o.id)}>→ Realizado</button>}
-                            {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => avancarStatus(o.id)}>→ Pago</button>}
+                            {o.status === "agendada" && <button className="btn-sm" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>}
+                            {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
+                            {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
                             {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem? Esta ação não pode ser desfeita.")}>Cancelar</button>}
                           </td>
                         </tr>
@@ -688,8 +738,9 @@ export default function App() {
                     <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
                     <div className="m-card-actions">
                       <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver detalhes</button>
-                      {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => avancarStatus(o.id)}>→ Realizado</button>}
-                      {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => avancarStatus(o.id)}>→ Pago</button>}
+                      {o.status === "agendada" && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>}
+                      {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
+                      {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
                       {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem?")}>Cancelar</button>}
                     </div>
                   </div>
@@ -727,9 +778,12 @@ export default function App() {
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>R$ {totalOrdem(o).toFixed(2)}</div>
                     <Badge status={o.status} />
-                    {user.perfil === "funcionario" && o.status === "agendada" && (
-                      <div style={{ marginTop: 8 }}>
-                        <button className="btn-sm btn-advance" onClick={e => { e.stopPropagation(); avancarStatus(o.id); }}>Marcar realizado</button>
+                    {o.status === "agendada" && (
+                      <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                        <button className="btn-sm btn-edit" onClick={e => { e.stopPropagation(); abrirEdicaoOrdem(o); }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>
+                        {user.perfil === "funcionario" && (
+                          <button className="btn-sm btn-advance" onClick={e => { e.stopPropagation(); avancarStatus(o.id); }}>Marcar realizado</button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -877,6 +931,52 @@ export default function App() {
         </Modal>
       )}
 
+      {/* MODAL EDITAR ORDEM */}
+      {modal === "editarOrdem" && (
+        <Modal title="Editar ordem de serviço" onClose={closeModal} footer={<><button className="btn-cancel-red" onClick={closeModal}>Cancelar</button><button className="btn-success" onClick={salvarEdicaoOrdem}>Salvar edição</button></>}>
+          <div className="form-row cols2">
+            <FSelect label="Cliente" required error={erros.clienteId} value={fOrdem.clienteId} onChange={e => setFOrdem(p => ({ ...p, clienteId: e.target.value }))}>
+              <option value="">Selecione...</option>
+              {clientes.filter(c => c.ativo).map(c => <option key={c.id} value={c.id}>{c.nome} {c.sobrenome}</option>)}
+            </FSelect>
+            <FSelect label="Funcionário" required error={erros.funcionarioId} value={fOrdem.funcionarioId} onChange={e => setFOrdem(p => ({ ...p, funcionarioId: e.target.value }))}>
+              <option value="">Selecione...</option>
+              {funcionarios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+            </FSelect>
+          </div>
+          <div className="form-row cols2">
+            <FInput label="Data" required type="date" value={fOrdem.data} onChange={e => setFOrdem(p => ({ ...p, data: e.target.value }))} error={erros.data} />
+            <FInput label="Horário" required type="time" value={fOrdem.hora} min="08:00" max="18:00" onChange={e => setFOrdem(p => ({ ...p, hora: e.target.value }))} error={erros.hora} />
+          </div>
+          <div className="section-sep">Serviços</div>
+          {fOrdem.servicos.map((sv, i) => (
+            <div key={i} className="service-row">
+              <div>
+                <select className="form-select" style={{ marginBottom: 6 }}
+                  value={sv.servicoId || "__livre"}
+                  onChange={e => {
+                    const pred = servicosAtivos.find(s => String(s.id) === e.target.value);
+                    setOrdemSvcField(i, "servicoId", e.target.value);
+                    if (pred) { setOrdemSvcField(i, "nome", pred.nome); setOrdemSvcField(i, "valor", pred.valor); }
+                    else { setOrdemSvcField(i, "nome", ""); setOrdemSvcField(i, "valor", ""); }
+                  }}>
+                  <option value="__livre">Personalizado...</option>
+                  {servicosAtivos.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                </select>
+                {(!sv.servicoId || sv.servicoId === "__livre") && (
+                  <input className="form-input" placeholder="Descreva o serviço" value={sv.nome} onChange={e => setOrdemSvcField(i, "nome", e.target.value)} />
+                )}
+              </div>
+              <input className="form-input" type="number" min="1" placeholder="Qtd" value={sv.qtd} onChange={e => setOrdemSvcField(i, "qtd", e.target.value)} />
+              <input className="form-input" type="number" min="0.01" step="0.01" placeholder="R$ valor" value={sv.valor} onChange={e => setOrdemSvcField(i, "valor", e.target.value)} />
+              <button className="btn-rem" onClick={() => setFOrdem(p => ({ ...p, servicos: p.servicos.filter((_, j) => j !== i) }))}>×</button>
+            </div>
+          ))}
+          {erros.servicos && <p className="form-error" style={{ marginBottom: 8 }}>{erros.servicos}</p>}
+          <button className="btn-add-svc" onClick={() => setFOrdem(p => ({ ...p, servicos: [...p.servicos, { servicoId: "", nome: "", qtd: 1, valor: "" }] }))}>+ Adicionar serviço</button>
+        </Modal>
+      )}
+
       {/* MODAL DETALHE */}
       {modal === "detalhe" && detalheOrdem && (() => {
         const o = ordens.find(x => x.id === detalheOrdem.id) || detalheOrdem;
@@ -903,6 +1003,49 @@ export default function App() {
           </Modal>
         );
       })()}
+
+      {/* MODAL CONFIRMAÇÃO AVANÇO DE STATUS */}
+      {modal === "confirmarAvanco" && ordemAvancando && (() => {
+        const o = ordens.find(x => x.id === ordemAvancando);
+        if (!o) return null;
+        const cli = clientes.find(c => c.id === o.clienteId);
+        const func = USERS.find(u => u.id === o.funcionarioId);
+        const proximoLabel = o.status === "agendada" ? "Realizado" : "Pago";
+        return (
+          <Modal
+            title={`Confirmar: Marcar como ${proximoLabel}`}
+            onClose={closeModal}
+            footer={<>
+              <button className="btn-cancel-red" onClick={closeModal}>Cancelar</button>
+              <button className="btn-success" onClick={() => { avancarStatus(o.id); closeModal(); }}>{proximoLabel}</button>
+            </>}
+          >
+            <div className="detail-grid">
+              <div><div className="detail-label">Cliente</div><div className="detail-value">{cli?.nome} {cli?.sobrenome}</div></div>
+              <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
+              <div><div className="detail-label">Data / Hora</div><div className="detail-value">{o.data} às {o.hora}</div></div>
+              <div><div className="detail-label">Funcionário</div><div className="detail-value">{func?.nome}</div></div>
+              <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div></div>
+              <div><div className="detail-label">Status atual</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
+            </div>
+            <div className="section-sep">Serviços</div>
+            {o.servicos.map((s, i) => (
+              <div key={i} className="svc-list-row">
+                <span>{s.nome} <span style={{ color: "#9ca3af" }}>× {s.qtd}</span></span>
+                <span>R$ {(s.qtd * s.valor).toFixed(2)}</span>
+              </div>
+            ))}
+            <div className="svc-total"><span>Total</span><span>R$ {totalOrdem(o).toFixed(2)}</span></div>
+          </Modal>
+        );
+      })()}
+
+      {/* MODAL CONFIRMAÇÃO LOGOUT */}
+      {modal === "confirmLogout" && (
+        <Modal title="Sair do sistema" onClose={closeModal} footer={<><button className="btn-sm" onClick={closeModal}>Cancelar</button><button className="btn-primary" style={{ background: "#b83232" }} onClick={() => { setUser(null); closeModal(); }}>Sair</button></>}>
+          <p className="confirm-msg">Deseja realmente sair do sistema?</p>
+        </Modal>
+      )}
 
       {/* MODAL CONFIRMAÇÃO */}
       {modal === "confirm" && confirmData && (
