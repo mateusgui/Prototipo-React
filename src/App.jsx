@@ -201,11 +201,29 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-success:hover{background:#186132}
 .btn-cancel-red{background:#b83232;color:#fff;border:none;cursor:pointer;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:500;transition:background .15s;white-space:nowrap}
 .btn-cancel-red:hover{background:#9c2929}
+.btn-maps{display:inline-flex;align-items:center;gap:5px;background:#4285F4;border:1px solid #3b78dc;color:#fff;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;text-decoration:none;margin-top:6px;white-space:nowrap}
+.btn-maps:hover{background:#3367d6;border-color:#2a56c6;color:#fff}
 `;
 
 function Badge({ status }) {
   const s = STATUS_CONFIG[status] || { label: status, color: "#6b7280", bg: "#f4f6f9" };
   return <span className="badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>;
+}
+
+function mapsUrl(endereco, cli) {
+  const parts = [endereco];
+  if (cli?.cidade) parts.push(cli.cidade);
+  if (cli?.estado) parts.push(cli.estado);
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(", "))}`;
+}
+
+function MapsPinIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="#FBBC04" stroke="#FBBC04" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" fill="#fff" stroke="#fff" />
+    </svg>
+  );
 }
 
 function FormGroup({ label, required, error, children }) {
@@ -1066,7 +1084,7 @@ export default function App() {
               <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
               <div><div className="detail-label">Data / Hora</div><div className="detail-value">{o.data} às {o.hora}</div></div>
               <div><div className="detail-label">Funcionário</div><div className="detail-value">{func?.nome}</div></div>
-              <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div></div>
+              <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div><a className="btn-maps" href={mapsUrl(o.endereco, cli)} target="_blank" rel="noopener noreferrer"><MapsPinIcon />Ver no Google Maps</a></div>
               <div><div className="detail-label">Status</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
             </div>
             {o.obs && <>
@@ -1106,7 +1124,7 @@ export default function App() {
               <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
               <div><div className="detail-label">Data / Hora</div><div className="detail-value">{o.data} às {o.hora}</div></div>
               <div><div className="detail-label">Funcionário</div><div className="detail-value">{func?.nome}</div></div>
-              <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div></div>
+              <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div><a className="btn-maps" href={mapsUrl(o.endereco, cli)} target="_blank" rel="noopener noreferrer"><MapsPinIcon />Ver no Google Maps</a></div>
               <div><div className="detail-label">Status atual</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
             </div>
             {o.obs && <>
