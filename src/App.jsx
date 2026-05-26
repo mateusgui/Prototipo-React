@@ -265,11 +265,11 @@ export default function App() {
   ]);
 
   const [ordens, setOrdens] = useState([
-    { id: 1, clienteId: 1, funcionarioId: 2, data: "2026-05-28", hora: "09:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua das Flores, 10 - Centro" },
-    { id: 2, clienteId: 2, funcionarioId: 3, data: "2026-05-29", hora: "14:00", status: "realizada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim" },
-    { id: 3, clienteId: 1, funcionarioId: 2, data: "2026-05-25", hora: "10:00", status: "paga", servicos: [{ nome: "Lavagem de Tapete", qtd: 3, valor: 180 }], endereco: "Rua das Flores, 10 - Centro" },
-    { id: 4, clienteId: 2, funcionarioId: 3, data: "2026-04-15", hora: "11:00", status: "paga", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }, { nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Av. Brasil, 200 - Jardim" },
-    { id: 5, clienteId: 1, funcionarioId: 2, data: "2026-03-10", hora: "14:00", status: "paga", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua das Flores, 10 - Centro" },
+    { id: 1, clienteId: 1, funcionarioId: 2, data: "2026-05-28", hora: "09:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "Sofá com mancha no canto esquerdo. Acesso pelo portão lateral." },
+    { id: 2, clienteId: 2, funcionarioId: 3, data: "2026-05-29", hora: "14:00", status: "realizada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Cliente pediu para ligar 30min antes de chegar." },
+    { id: 3, clienteId: 1, funcionarioId: 2, data: "2026-05-25", hora: "10:00", status: "paga", servicos: [{ nome: "Lavagem de Tapete", qtd: 3, valor: 180 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 4, clienteId: 2, funcionarioId: 3, data: "2026-04-15", hora: "11:00", status: "paga", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }, { nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Tapete persa delicado, usar produto neutro." },
+    { id: 5, clienteId: 1, funcionarioId: 2, data: "2026-03-10", hora: "14:00", status: "paga", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
   ]);
 
   const [loginEmail, setLoginEmail] = useState("");
@@ -288,7 +288,7 @@ export default function App() {
   const [fServico, setFServico] = useState({ nome: "", valor: "" });
   const [editServico, setEditServico] = useState(null);
   const [fCliente, setFCliente] = useState({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
-  const [fOrdem, setFOrdem] = useState({ clienteId: "", funcionarioId: "", data: "", hora: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
+  const [fOrdem, setFOrdem] = useState({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
   const [ordemEditando, setOrdemEditando] = useState(null);
   const [ordemAvancando, setOrdemAvancando] = useState(null);
   const [clienteEditando, setClienteEditando] = useState(null);
@@ -331,6 +331,7 @@ export default function App() {
   }
 
   function reativarCliente(id) { setClientes(p => p.map(c => c.id === id ? { ...c, ativo: true } : c)); }
+  function reativarServico(id) { setServicos(p => p.map(s => s.id === id ? { ...s, ativo: true } : s)); }
 
   function abrirEdicaoCliente(c) {
     setClienteEditando(c.id);
@@ -363,9 +364,10 @@ export default function App() {
       id: Date.now(), clienteId: parseInt(fOrdem.clienteId), funcionarioId: parseInt(fOrdem.funcionarioId),
       data: fOrdem.data, hora: fOrdem.hora, status: "agendada",
       servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor) })),
-      endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`
+      endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`,
+      obs: fOrdem.obs || ""
     }]);
-    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
+    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
     closeModal();
   }
 
@@ -376,6 +378,7 @@ export default function App() {
       funcionarioId: String(o.funcionarioId),
       data: o.data,
       hora: o.hora,
+      obs: o.obs || "",
       servicos: o.servicos.map(s => {
         const pred = servicosAtivos.find(sv => sv.nome === s.nome);
         return { servicoId: pred ? String(pred.id) : "__livre", nome: s.nome, qtd: s.qtd, valor: String(s.valor) };
@@ -403,9 +406,10 @@ export default function App() {
       data: fOrdem.data,
       hora: fOrdem.hora,
       servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor) })),
-      endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`
+      endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`,
+      obs: fOrdem.obs || ""
     } : o));
-    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
+    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
     closeModal();
   }
 
@@ -432,6 +436,10 @@ export default function App() {
   function avancarStatus(id) {
     const map = { agendada: "realizada", realizada: "paga" };
     setOrdens(p => p.map(o => o.id === id && map[o.status] ? { ...o, status: map[o.status] } : o));
+  }
+
+  function reativarOrdem(id) {
+    setOrdens(p => p.map(o => o.id === id && o.status === "cancelada" ? { ...o, status: "agendada" } : o));
   }
 
   function confirmar(tipo, id, msg) { setConfirmData({ tipo, id, msg }); setModal("confirm"); }
@@ -687,6 +695,7 @@ export default function App() {
                             <button className="btn-sm" onClick={() => abrirEditServico(sv)}>Editar</button>
                             <button className="btn-sm btn-danger" onClick={() => confirmar("inativarServico", sv.id, `Deseja inativar o serviço "${sv.nome}"?`)}>Inativar</button>
                           </>}
+                          {!sv.ativo && <button className="btn-sm btn-advance" onClick={() => reativarServico(sv.id)}>Reativar</button>}
                         </td>
                       </tr>
                     ))}
@@ -706,6 +715,11 @@ export default function App() {
                     <div className="m-card-actions">
                       <button className="btn-sm" onClick={() => abrirEditServico(sv)}>Editar</button>
                       <button className="btn-sm btn-danger" onClick={() => confirmar("inativarServico", sv.id, `Deseja inativar "${sv.nome}"?`)}>Inativar</button>
+                    </div>
+                  )}
+                  {!sv.ativo && (
+                    <div className="m-card-actions">
+                      <button className="btn-sm btn-advance" onClick={() => reativarServico(sv.id)}>Reativar</button>
                     </div>
                   )}
                 </div>
@@ -741,6 +755,7 @@ export default function App() {
                             {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
                             {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
                             {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem? Esta ação não pode ser desfeita.")}>Cancelar</button>}
+                            {o.status === "cancelada" && <button className="btn-sm btn-advance" onClick={() => reativarOrdem(o.id)}>Reativar</button>}
                           </td>
                         </tr>
                       );
@@ -768,6 +783,7 @@ export default function App() {
                       {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
                       {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
                       {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem?")}>Cancelar</button>}
+                      {o.status === "cancelada" && <button className="btn-sm btn-advance" onClick={() => reativarOrdem(o.id)}>Reativar</button>}
                     </div>
                   </div>
                 );
@@ -806,10 +822,10 @@ export default function App() {
                     <Badge status={o.status} />
                     {o.status === "agendada" && (
                       <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                        <button className="btn-sm btn-edit" onClick={e => { e.stopPropagation(); abrirEdicaoOrdem(o); }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>
-                        {user.perfil === "funcionario" && (
-                          <button className="btn-sm btn-advance" onClick={e => { e.stopPropagation(); avancarStatus(o.id); }}>Marcar realizado</button>
+                        {user.perfil === "admin" && (
+                          <button className="btn-sm btn-edit" onClick={e => { e.stopPropagation(); abrirEdicaoOrdem(o); }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>
                         )}
+                        <button className="btn-sm btn-advance" onClick={e => { e.stopPropagation(); abrirConfirmarAvanco(o.id); }}>Marcar realizado</button>
                       </div>
                     )}
                   </div>
@@ -981,6 +997,10 @@ export default function App() {
           ))}
           {erros.servicos && <p className="form-error" style={{ marginBottom: 8 }}>{erros.servicos}</p>}
           <button className="btn-add-svc" onClick={() => setFOrdem(p => ({ ...p, servicos: [...p.servicos, { servicoId: "", nome: "", qtd: 1, valor: "" }] }))}>+ Adicionar serviço</button>
+          <div className="section-sep">Observações</div>
+          <FormGroup label="Anotações sobre o serviço">
+            <textarea className="form-input" rows="3" placeholder="Ex: Sofá com mancha no canto esquerdo, acesso pelo portão lateral, ligar 30min antes..." value={fOrdem.obs} onChange={e => setFOrdem(p => ({ ...p, obs: e.target.value }))} style={{ resize: "vertical", minHeight: 60 }} />
+          </FormGroup>
         </Modal>
       )}
 
@@ -1027,6 +1047,10 @@ export default function App() {
           ))}
           {erros.servicos && <p className="form-error" style={{ marginBottom: 8 }}>{erros.servicos}</p>}
           <button className="btn-add-svc" onClick={() => setFOrdem(p => ({ ...p, servicos: [...p.servicos, { servicoId: "", nome: "", qtd: 1, valor: "" }] }))}>+ Adicionar serviço</button>
+          <div className="section-sep">Observações</div>
+          <FormGroup label="Anotações sobre o serviço">
+            <textarea className="form-input" rows="3" placeholder="Ex: Sofá com mancha no canto esquerdo, acesso pelo portão lateral, ligar 30min antes..." value={fOrdem.obs} onChange={e => setFOrdem(p => ({ ...p, obs: e.target.value }))} style={{ resize: "vertical", minHeight: 60 }} />
+          </FormGroup>
         </Modal>
       )}
 
@@ -1045,6 +1069,10 @@ export default function App() {
               <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div></div>
               <div><div className="detail-label">Status</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
             </div>
+            {o.obs && <>
+              <div className="section-sep">Observações</div>
+              <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, background: "#f9fafb", borderRadius: 8, padding: "10px 14px", border: "1px solid #f0f2f5" }}>{o.obs}</p>
+            </>}
             <div className="section-sep">Serviços</div>
             {o.servicos.map((s, i) => (
               <div key={i} className="svc-list-row">
@@ -1081,6 +1109,10 @@ export default function App() {
               <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div></div>
               <div><div className="detail-label">Status atual</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
             </div>
+            {o.obs && <>
+              <div className="section-sep">Observações</div>
+              <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, background: "#f9fafb", borderRadius: 8, padding: "10px 14px", border: "1px solid #f0f2f5" }}>{o.obs}</p>
+            </>}
             <div className="section-sep">Serviços</div>
             {o.servicos.map((s, i) => (
               <div key={i} className="svc-list-row">
