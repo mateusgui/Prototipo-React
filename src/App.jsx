@@ -280,6 +280,9 @@ export default function App() {
   const [clientes, setClientes] = useState([
     { id: 1, nome: "Ana", sobrenome: "Lima", cpf: "529.982.247-25", telefone: "(65) 99999-1111", rua: "Rua das Flores", numero: "10", bairro: "Centro", cidade: "Rondonópolis", estado: "MT", cep: "78700-000", ativo: true },
     { id: 2, nome: "Carlos", sobrenome: "Pereira", cpf: "871.688.760-60", telefone: "(65) 98888-2222", rua: "Av. Brasil", numero: "200", bairro: "Jardim", cidade: "Rondonópolis", estado: "MT", cep: "78710-000", ativo: true },
+    { id: 3, nome: "Fernanda", sobrenome: "Santos", cpf: "153.509.460-56", telefone: "(65) 97777-3333", rua: "Rua Goiás", numero: "45", bairro: "Vila Aurora", cidade: "Rondonópolis", estado: "MT", cep: "78720-000", ativo: true },
+    { id: 4, nome: "Roberto", sobrenome: "Oliveira", cpf: "046.113.980-05", telefone: "(65) 96666-4444", rua: "Rua Mato Grosso", numero: "312", bairro: "Residencial", cidade: "Rondonópolis", estado: "MT", cep: "78730-000", ativo: true },
+    { id: 5, nome: "Patrícia", sobrenome: "Alves", cpf: "222.845.750-23", telefone: "(65) 95555-5555", rua: "Av. Lions", numero: "88", bairro: "Coophavila II", cidade: "Rondonópolis", estado: "MT", cep: "78740-000", ativo: true },
   ]);
 
   const [ordens, setOrdens] = useState([
@@ -288,6 +291,12 @@ export default function App() {
     { id: 3, clienteId: 1, funcionarioId: 2, data: "2026-05-25", hora: "10:00", status: "paga", servicos: [{ nome: "Lavagem de Tapete", qtd: 3, valor: 180 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
     { id: 4, clienteId: 2, funcionarioId: 3, data: "2026-04-15", hora: "11:00", status: "paga", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }, { nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Tapete persa delicado, usar produto neutro." },
     { id: 5, clienteId: 1, funcionarioId: 2, data: "2026-03-10", hora: "14:00", status: "paga", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 6, clienteId: 3, funcionarioId: 2, data: "2026-05-27", hora: "10:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "Tapete de lã, usar produto específico." },
+    { id: 7, clienteId: 4, funcionarioId: 3, data: "2026-05-28", hora: "11:30", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }, { nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "Sofá retrátil com 4 módulos. Portão eletrônico, ligar ao chegar." },
+    { id: 8, clienteId: 5, funcionarioId: 2, data: "2026-05-30", hora: "09:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 1, valor: 180 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "" },
+    { id: 9, clienteId: 1, funcionarioId: 3, data: "2026-06-02", hora: "14:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Rua das Flores, 10 - Centro", obs: "Segunda impermeabilização do ano. Checar resultado da anterior." },
+    { id: 10, clienteId: 2, funcionarioId: 2, data: "2026-06-04", hora: "08:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 3, valor: 250 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Três sofás de 2 lugares. Preferência por horário matutino." },
+    { id: 11, clienteId: 4, funcionarioId: 3, data: "2026-06-05", hora: "15:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }, { nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "" },
   ]);
 
   const [loginEmail, setLoginEmail] = useState("");
@@ -472,6 +481,7 @@ export default function App() {
 
   function ordensFiltradas() {
     return ordens.filter(o => {
+      if (o.status !== "agendada") return false;
       if (user?.perfil === "funcionario" && o.funcionarioId !== user.id) return false;
       if (filtroFunc && o.funcionarioId !== parseInt(filtroFunc)) return false;
       if (filtroData && o.data !== filtroData) return false;
