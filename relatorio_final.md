@@ -38,7 +38,7 @@ Datas são exibidas no formato ISO `2026-05-28` em todo o sistema. O padrão bra
 
 ---
 
-### 🔴 F02 — Telefone sem máscara de formatação
+### ✅ F02 — Telefone sem máscara de formatação
 
 **Onde**: Modal de cadastro/edição de cliente (linhas 933, 959)
 
@@ -48,7 +48,7 @@ O campo de telefone do cliente aceita texto livre. O CPF tem máscara `000.000.0
 
 ---
 
-### 🔴 F03 — Data hardcoded na validação de ordens
+### ✅ F03 — Data hardcoded na validação de ordens
 
 **Onde**: [App.jsx:383](file:///c:/Users/Digitalização05/Desktop/Prototipo%20React/src/App.jsx#L383)
 
@@ -62,7 +62,7 @@ A data `"2026-05-22"` está fixa no código. Amanhã esse valor já estará defa
 
 ---
 
-### 🔴 F04 — Edição de ordem não valida data futura
+### ✅ F04 — Edição de ordem não valida data futura
 
 **Onde**: [App.jsx:418-441](file:///c:/Users/Digitalização05/Desktop/Prototipo%20React/src/App.jsx#L418-L441) — função `salvarEdicaoOrdem()`
 
@@ -72,7 +72,7 @@ A criação de ordem valida se a data é futura (mesmo com o bug F03), mas a **e
 
 ---
 
-### 🟡 F05 — Dashboard mostra ordens sem ordenação lógica
+### ✅ F05 — Dashboard mostra ordens sem ordenação lógica
 
 **Onde**: [App.jsx:621](file:///c:/Users/Digitalização05/Desktop/Prototipo%20React/src/App.jsx#L621)
 

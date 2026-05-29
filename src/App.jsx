@@ -65,6 +65,15 @@ function fmtMes(ym) {
   const [y, m] = ym.split("-");
   return `${MESES_ABREV[parseInt(m, 10) - 1]}/${y}`;
 }
+// Máscara de telefone: celular (00) 00000-0000 ou fixo (00) 0000-0000
+function fmtTelefone(v) {
+  v = v.replace(/\D/g, "").slice(0, 11);
+  if (v.length > 10) return v.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+  if (v.length > 6)  return v.replace(/(\d{2})(\d{4,5})(\d+)/, "($1) $2-$3");
+  if (v.length > 2)  return v.replace(/(\d{2})(\d+)/, "($1) $2");
+  if (v.length > 0)  return `(${v}`;
+  return v;
+}
 
 const css = `
 *{box-sizing:border-box;margin:0;padding:0}
@@ -124,13 +133,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .m-card-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;border-top:1px solid #f0f2f5;padding-top:10px}
 
 /* ── STAT GRID ── */
-.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px}
+.stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
 .stat-card{background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:20px 22px}
-.stat-label{font-size:12px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat-label{font-size:12px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.stat-sublabel{font-size:11px;color:#9ca3af;margin-bottom:6px}
 .stat-value{font-size:26px;font-weight:700;color:#1a1d23}
 .stat-card.purple .stat-value{color:#5b3fa6}
 .stat-card.green .stat-value{color:#1f7a3e}
 .stat-card.blue .stat-value{color:#1a6fbb}
+.stat-card.orange .stat-value{color:#b85e1a}
 
 /* ── AGENDA ── */
 .agenda-card{background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:16px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all .15s;gap:12px}
@@ -395,7 +406,7 @@ export default function App() {
     if (!fOrdem.clienteId) e.clienteId = "Obrigatório";
     if (!fOrdem.funcionarioId) e.funcionarioId = "Obrigatório";
     if (!fOrdem.data) e.data = "Obrigatório";
-    else if (fOrdem.data <= "2026-05-22") e.data = "Escolha uma data futura.";
+    else if (fOrdem.data < new Date().toISOString().slice(0, 10)) e.data = "Escolha uma data futura.";
     if (!fOrdem.hora) e.hora = "Obrigatório";
     else if (fOrdem.hora < "08:00" || fOrdem.hora > "18:00") e.hora = "Entre 08:00 e 18:00";
     const svs = fOrdem.servicos.filter(s => s.nome && Number(s.valor) > 0);
@@ -435,6 +446,7 @@ export default function App() {
     if (!fOrdem.clienteId) e.clienteId = "Obrigatório";
     if (!fOrdem.funcionarioId) e.funcionarioId = "Obrigatório";
     if (!fOrdem.data) e.data = "Obrigatório";
+    else if (fOrdem.data < new Date().toISOString().slice(0, 10)) e.data = "Escolha uma data futura.";
     if (!fOrdem.hora) e.hora = "Obrigatório";
     else if (fOrdem.hora < "08:00" || fOrdem.hora > "18:00") e.hora = "Entre 08:00 e 18:00";
     const svs = fOrdem.servicos.filter(s => s.nome && Number(s.valor) > 0);
@@ -543,6 +555,27 @@ export default function App() {
   const pendentes = ordens.filter(o => ["agendada", "realizada"].includes(o.status)).length;
   const servicosAtivos = servicos.filter(s => s.ativo);
 
+  // KPIs filtrados pelo mês atual
+  const mesAtual = new Date().toISOString().slice(0, 7); // "2026-05"
+  const ordensMes = ordens.filter(o => o.data.slice(0, 7) === mesAtual);
+  const kpiMes = {
+    agendadas:  ordensMes.filter(o => o.status === "agendada").length,
+    realizadas: ordensMes.filter(o => o.status === "realizada").length,
+    pagas:      ordensMes.filter(o => o.status === "paga").length,
+    canceladas: ordensMes.filter(o => o.status === "cancelada").length,
+    faturamento: ordensMes.filter(o => o.status === "paga").reduce((s, o) => s + totalOrdem(o), 0),
+  };
+
+  const ordensDashboard = (() => {
+    const agendadas = ordens
+      .filter(o => o.status === "agendada")
+      .sort((a, b) => a.data.localeCompare(b.data) || a.hora.localeCompare(b.hora));
+    const outras = ordens
+      .filter(o => o.status !== "agendada")
+      .sort((a, b) => b.data.localeCompare(a.data));
+    return [...agendadas, ...outras].slice(0, 6);
+  })();
+
   function setOrdemSvcField(i, field, val) {
     setFOrdem(p => { const s = [...p.servicos]; s[i] = { ...s[i], [field]: val }; return { ...p, servicos: s }; });
   }
@@ -621,11 +654,36 @@ export default function App() {
 
           {/* DASHBOARD */}
           {aba === "dashboard" && (<>
-            <div className="page-header"><h1 className="page-title">Visão geral</h1></div>
+            <div className="page-header">
+              <h1 className="page-title">Visão geral</h1>
+              <span style={{ fontSize: 13, color: "#6b7280" }}>{fmtMes(mesAtual)}</span>
+            </div>
             <div className="stat-grid">
-              <div className="stat-card blue"><div className="stat-label">Agendadas</div><div className="stat-value">{ordens.filter(o => o.status === "agendada").length}</div></div>
-              <div className="stat-card"><div className="stat-label">Pendentes</div><div className="stat-value">{pendentes}</div></div>
-              <div className="stat-card green"><div className="stat-label">Faturamento total</div><div className="stat-value">R$ {totalFaturado.toFixed(2)}</div></div>
+              <div className="stat-card blue">
+                <div className="stat-label">Agendadas</div>
+                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
+                <div className="stat-value">{kpiMes.agendadas}</div>
+              </div>
+              <div className="stat-card purple">
+                <div className="stat-label">Serviços Realizados</div>
+                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
+                <div className="stat-value">{kpiMes.realizadas}</div>
+              </div>
+              <div className="stat-card green">
+                <div className="stat-label">Pagamentos Recebidos</div>
+                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
+                <div className="stat-value">{kpiMes.pagas}</div>
+              </div>
+              <div className="stat-card orange">
+                <div className="stat-label">Canceladas</div>
+                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
+                <div className="stat-value">{kpiMes.canceladas}</div>
+              </div>
+              <div className="stat-card" style={{ borderLeft: "3px solid #1f7a3e" }}>
+                <div className="stat-label">Faturamento do Mês</div>
+                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
+                <div className="stat-value" style={{ color: "#1f7a3e", fontSize: 20 }}>R$ {kpiMes.faturamento.toFixed(2).replace(".", ",")}</div>
+              </div>
             </div>
             {/* desktop table */}
             <div className="card table-desktop">
@@ -633,7 +691,7 @@ export default function App() {
                 <table className="table">
                   <thead><tr><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Total</th><th>Status</th></tr></thead>
                   <tbody>
-                    {ordens.slice(0, 6).map(o => {
+                    {ordensDashboard.map(o => {
                       const cli = clientes.find(c => c.id === o.clienteId);
                       const func = USERS.find(u => u.id === o.funcionarioId);
                       return (
@@ -652,7 +710,7 @@ export default function App() {
             </div>
             {/* mobile cards */}
             <div className="mobile-list">
-              {ordens.slice(0, 6).map(o => {
+              {ordensDashboard.map(o => {
                 const cli = clientes.find(c => c.id === o.clienteId);
                 const func = USERS.find(u => u.id === o.funcionarioId);
                 return (
@@ -945,7 +1003,7 @@ export default function App() {
           </div>
           <div className="form-row cols2">
             <FInput label="CPF" required placeholder="000.000.000-00" value={fCliente.cpf} onChange={e => setFCliente(p => ({ ...p, cpf: fmtCPF(e.target.value) }))} error={erros.cpf} />
-            <FInput label="Telefone" required placeholder="(65) 99999-0000" value={fCliente.telefone} onChange={e => setFCliente(p => ({ ...p, telefone: e.target.value }))} error={erros.telefone} />
+            <FInput label="Telefone" required placeholder="(65) 99999-0000" value={fCliente.telefone} onChange={e => setFCliente(p => ({ ...p, telefone: fmtTelefone(e.target.value) }))} error={erros.telefone} />
           </div>
           <FInput label="E-mail" type="email" placeholder="cliente@email.com" value={fCliente.email} onChange={e => setFCliente(p => ({ ...p, email: e.target.value }))} />
           <div className="section-sep">Endereço</div>
@@ -971,7 +1029,7 @@ export default function App() {
           </div>
           <div className="form-row cols2">
             <FInput label="CPF" required placeholder="000.000.000-00" value={fCliente.cpf} onChange={e => setFCliente(p => ({ ...p, cpf: fmtCPF(e.target.value) }))} error={erros.cpf} />
-            <FInput label="Telefone" required placeholder="(65) 99999-0000" value={fCliente.telefone} onChange={e => setFCliente(p => ({ ...p, telefone: e.target.value }))} error={erros.telefone} />
+            <FInput label="Telefone" required placeholder="(65) 99999-0000" value={fCliente.telefone} onChange={e => setFCliente(p => ({ ...p, telefone: fmtTelefone(e.target.value) }))} error={erros.telefone} />
           </div>
           <FInput label="E-mail" type="email" placeholder="cliente@email.com" value={fCliente.email} onChange={e => setFCliente(p => ({ ...p, email: e.target.value }))} />
           <div className="section-sep">Endereço</div>
