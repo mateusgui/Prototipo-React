@@ -23,7 +23,7 @@ Problemas que já existem no protótipo e que, se não corrigidos, podem causar 
 
 ---
 
-### 🔴 F01 — Formato de data brasileiro não é usado
+### ✅ F01 — Formato de data brasileiro não é usado
 
 **Onde**: Todo o sistema (Dashboard, Ordens, Agenda, Relatórios, Modal de detalhes)
 

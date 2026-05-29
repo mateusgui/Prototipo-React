@@ -7,19 +7,19 @@ const USERS = [
 ];
 
 const STATUS_CONFIG = {
-  agendada:  { label: "Agendada",           color: "#1a6fbb", bg: "#e8f3fc" },
-  realizada: { label: "Serviço Realizado",  color: "#1f7a3e", bg: "#e6f4ec" },
-  paga:      { label: "Pagamento Recebido", color: "#5b3fa6", bg: "#eeebfb" },
-  cancelada: { label: "Cancelada",          color: "#b83232", bg: "#fdeaea" },
+  agendada: { label: "Agendada", color: "#1a6fbb", bg: "#e8f3fc" },
+  realizada: { label: "Serviço Realizado", color: "#1f7a3e", bg: "#e6f4ec" },
+  paga: { label: "Pagamento Recebido", color: "#5b3fa6", bg: "#eeebfb" },
+  cancelada: { label: "Cancelada", color: "#b83232", bg: "#fdeaea" },
 };
 
 const NAV_ICONS = {
   dashboard: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
-  clientes:  "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
-  servicos:  "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
-  ordens:    "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
-  agenda:    "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
-  relatorios:"M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+  clientes: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z",
+  servicos: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+  ordens: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  agenda: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+  relatorios: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
 };
 
 function NavIcon({ id }) {
@@ -49,6 +49,21 @@ function fmtCPF(v) {
   if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d+)/, "$1.$2.$3");
   if (v.length > 3) return v.replace(/(\d{3})(\d+)/, "$1.$2");
   return v;
+}
+
+// Converte "2026-05-28" → "28/05/2026" sem depender de fuso horário
+function fmtData(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+// Converte "2026-03" → "Mar/2026"
+const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+function fmtMes(ym) {
+  if (!ym) return "";
+  const [y, m] = ym.split("-");
+  return `${MESES_ABREV[parseInt(m, 10) - 1]}/${y}`;
 }
 
 const css = `
@@ -533,8 +548,8 @@ export default function App() {
   }
 
   const abas = user?.perfil === "admin"
-    ? [["dashboard","Dashboard"],["clientes","Clientes"],["servicos","Serviços"],["ordens","Ordens"],["agenda","Agenda"],["relatorios","Relatórios"]]
-    : [["agenda","Agenda"]];
+    ? [["dashboard", "Dashboard"], ["clientes", "Clientes"], ["servicos", "Serviços"], ["ordens", "Ordens"], ["agenda", "Agenda"], ["relatorios", "Relatórios"]]
+    : [["agenda", "Agenda"]];
 
   if (!user) return (
     <>
@@ -624,7 +639,7 @@ export default function App() {
                       return (
                         <tr key={o.id}>
                           <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
-                          <td style={{ color: "#6b7280" }}>{o.data} · {o.hora}</td>
+                          <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
                           <td>{func?.nome}</td>
                           <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
                           <td><Badge status={o.status} /></td>
@@ -646,7 +661,7 @@ export default function App() {
                       <div className="m-card-title">{cli?.nome} {cli?.sobrenome}</div>
                       <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
                     </div>
-                    <div className="m-card-sub">{o.data} · {o.hora} · {func?.nome}</div>
+                    <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
                     <Badge status={o.status} />
                   </div>
                 );
@@ -673,7 +688,7 @@ export default function App() {
                         <td>{c.cidade} / {c.estado}</td>
                         <td><span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span></td>
                         <td style={{ display: "flex", gap: 8 }}>
-                          {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>}
+                          {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
                           {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
                           {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
                         </td>
@@ -693,7 +708,7 @@ export default function App() {
                   <div className="m-card-sub">{c.cpf}</div>
                   <div className="m-card-sub">{c.telefone} · {c.cidade}/{c.estado}</div>
                   <div className="m-card-actions">
-                    {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>}
+                    {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
                     {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
                     {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
                   </div>
@@ -772,14 +787,14 @@ export default function App() {
                       return (
                         <tr key={o.id}>
                           <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
-                          <td style={{ color: "#6b7280" }}>{o.data} · {o.hora}</td>
+                          <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
                           <td>{func?.nome}</td>
                           <td style={{ color: "#6b7280", fontSize: 13 }}>{o.servicos.map(s => s.nome).join(", ")}</td>
                           <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
                           <td><Badge status={o.status} /></td>
                           <td style={{ display: "flex", gap: 6 }}>
                             <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver</button>
-                            {o.status === "agendada" && <button className="btn-sm" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>}
+                            {o.status === "agendada" && <button className="btn-sm" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
                             {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
                             {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
                             {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem? Esta ação não pode ser desfeita.")}>Cancelar</button>}
@@ -802,12 +817,12 @@ export default function App() {
                       <div className="m-card-title">{cli?.nome} {cli?.sobrenome}</div>
                       <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
                     </div>
-                    <div className="m-card-sub">{o.data} · {o.hora} · {func?.nome}</div>
+                    <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
                     <div className="m-card-sub" style={{ fontSize: 12, color: "#9ca3af" }}>{o.servicos.map(s => s.nome).join(", ")}</div>
                     <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
                     <div className="m-card-actions">
                       <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver detalhes</button>
-                      {o.status === "agendada" && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>}
+                      {o.status === "agendada" && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
                       {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
                       {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
                       {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem?")}>Cancelar</button>}
@@ -842,7 +857,7 @@ export default function App() {
                 <div key={o.id} className="agenda-card" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
                   <div style={{ minWidth: 0 }}>
                     <div className="agenda-card-name">{cli?.nome} {cli?.sobrenome}</div>
-                    <div className="agenda-card-sub">{o.data} às {o.hora} · {func?.nome}</div>
+                    <div className="agenda-card-sub">{fmtData(o.data)} às {o.hora} · {func?.nome}</div>
                     <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>{o.servicos.map(s => s.nome).join(", ")}</div>
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -851,7 +866,7 @@ export default function App() {
                     {o.status === "agendada" && (
                       <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
                         {user.perfil === "admin" && (
-                          <button className="btn-sm btn-edit" onClick={e => { e.stopPropagation(); abrirEdicaoOrdem(o); }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Editar</button>
+                          <button className="btn-sm btn-edit" onClick={e => { e.stopPropagation(); abrirEdicaoOrdem(o); }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>
                         )}
                         <button className="btn-sm btn-advance" onClick={e => { e.stopPropagation(); abrirConfirmarAvanco(o.id); }}>Marcar realizado</button>
                       </div>
@@ -906,7 +921,7 @@ export default function App() {
                     return (
                       <div key={mes} style={{ marginBottom: 10 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                          <span style={{ color: "#374151" }}>{mes}</span>
+                          <span style={{ color: "#374151" }}>{fmtMes(mes)}</span>
                           <strong>R$ {val.toFixed(2)}</strong>
                         </div>
                         <div style={{ background: "#f0f2f5", borderRadius: 99, height: 6 }}>
@@ -1092,7 +1107,7 @@ export default function App() {
             <div className="detail-grid">
               <div><div className="detail-label">Cliente</div><div className="detail-value">{cli?.nome} {cli?.sobrenome}</div></div>
               <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
-              <div><div className="detail-label">Data / Hora</div><div className="detail-value">{o.data} às {o.hora}</div></div>
+              <div><div className="detail-label">Data / Hora</div><div className="detail-value">{fmtData(o.data)} às {o.hora}</div></div>
               <div><div className="detail-label">Funcionário</div><div className="detail-value">{func?.nome}</div></div>
               <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div><a className="btn-maps" href={mapsUrl(o.endereco, cli)} target="_blank" rel="noopener noreferrer"><MapsPinIcon />Ver no Google Maps</a></div>
               <div><div className="detail-label">Status</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
@@ -1132,7 +1147,7 @@ export default function App() {
             <div className="detail-grid">
               <div><div className="detail-label">Cliente</div><div className="detail-value">{cli?.nome} {cli?.sobrenome}</div></div>
               <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
-              <div><div className="detail-label">Data / Hora</div><div className="detail-value">{o.data} às {o.hora}</div></div>
+              <div><div className="detail-label">Data / Hora</div><div className="detail-value">{fmtData(o.data)} às {o.hora}</div></div>
               <div><div className="detail-label">Funcionário</div><div className="detail-value">{func?.nome}</div></div>
               <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div><a className="btn-maps" href={mapsUrl(o.endereco, cli)} target="_blank" rel="noopener noreferrer"><MapsPinIcon />Ver no Google Maps</a></div>
               <div><div className="detail-label">Status atual</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
