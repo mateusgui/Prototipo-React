@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from "react";
 
 const USERS = [
-  { id: 1, email: "admin@lavanderia.com", senha: "admin123", nome: "Admin", perfil: "admin" },
-  { id: 2, email: "joao@lavanderia.com", senha: "func123", nome: "João Silva", perfil: "funcionario" },
-  { id: 3, email: "maria@lavanderia.com", senha: "func123", nome: "Maria Souza", perfil: "funcionario" },
+  { id: 1, email: "admin@lavanderia.com", senha: "123456", nome: "Admin", perfil: "admin" },
+  { id: 2, email: "joao@lavanderia.com", senha: "123456", nome: "João Silva", perfil: "funcionario" },
+  { id: 3, email: "maria@lavanderia.com", senha: "123456", nome: "Maria Souza", perfil: "funcionario" },
 ];
 
 const STATUS_CONFIG = {
@@ -69,9 +69,9 @@ function fmtMes(ym) {
 function fmtTelefone(v) {
   v = v.replace(/\D/g, "").slice(0, 11);
   if (v.length > 10) return v.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  if (v.length > 6)  return v.replace(/(\d{2})(\d{4,5})(\d+)/, "($1) $2-$3");
-  if (v.length > 2)  return v.replace(/(\d{2})(\d+)/, "($1) $2");
-  if (v.length > 0)  return `(${v}`;
+  if (v.length > 6) return v.replace(/(\d{2})(\d{4,5})(\d+)/, "($1) $2-$3");
+  if (v.length > 2) return v.replace(/(\d{2})(\d+)/, "($1) $2");
+  if (v.length > 0) return `(${v}`;
   return v;
 }
 
@@ -297,11 +297,12 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [aba, setAba] = useState("dashboard");
 
-  const [servicos, setServicos] = useState([
-    { id: 1, nome: "Limpeza/Higienização de Sofá", valor: 250, ativo: true },
-    { id: 2, nome: "Impermeabilização", valor: 300, ativo: true },
-    { id: 3, nome: "Lavagem de Tapete", valor: 180, ativo: true },
-  ]);
+  const servicos = [
+    { id: 1, nome: "Limpeza e Higienização" },
+    { id: 2, nome: "Impermeabilização" },
+    { id: 3, nome: "Lavagem de Tapetes" },
+    { id: 4, nome: "Lavagem de Cortinas" },
+  ];
 
   const [clientes, setClientes] = useState([
     { id: 1, nome: "Ana", sobrenome: "Lima", cpf: "529.982.247-25", telefone: "(65) 99999-1111", rua: "Rua das Flores", numero: "10", bairro: "Centro", cidade: "Rondonópolis", estado: "MT", cep: "78700-000", ativo: true },
@@ -338,13 +339,13 @@ export default function App() {
   const [relFim, setRelFim] = useState("2026-05");
   const [relServico, setRelServico] = useState("");
   const [relFunc, setRelFunc] = useState("");
-  const [fServico, setFServico] = useState({ nome: "", valor: "" });
-  const [editServico, setEditServico] = useState(null);
-  const [fCliente, setFCliente] = useState({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
+
+  const [fCliente, setFCliente] = useState({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "" });
   const [fOrdem, setFOrdem] = useState({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
   const [ordemEditando, setOrdemEditando] = useState(null);
   const [ordemAvancando, setOrdemAvancando] = useState(null);
   const [clienteEditando, setClienteEditando] = useState(null);
+  const [filtroBuscaCliente, setFiltroBuscaCliente] = useState("");
 
   const funcionarios = USERS.filter(u => u.perfil === "funcionario");
 
@@ -362,7 +363,6 @@ export default function App() {
   function validarFCliente(excluirId = null) {
     const e = {};
     if (!fCliente.nome) e.nome = "Obrigatório";
-    if (!fCliente.sobrenome) e.sobrenome = "Obrigatório";
     if (!fCliente.cpf) e.cpf = "CPF é obrigatório";
     else if (!validarCPF(fCliente.cpf)) e.cpf = "CPF inválido. Verifique os dígitos.";
     else if (clientes.find(c => c.cpf === fCliente.cpf && c.id !== excluirId)) e.cpf = "Este CPF já está registrado.";
@@ -379,16 +379,15 @@ export default function App() {
     const e = validarFCliente();
     if (Object.keys(e).length) { setErros(e); return; }
     setClientes(p => [...p, { ...fCliente, id: Date.now(), ativo: true }]);
-    setFCliente({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
+    setFCliente({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "" });
     closeModal();
   }
 
   function reativarCliente(id) { setClientes(p => p.map(c => c.id === id ? { ...c, ativo: true } : c)); }
-  function reativarServico(id) { setServicos(p => p.map(s => s.id === id ? { ...s, ativo: true } : s)); }
 
   function abrirEdicaoCliente(c) {
     setClienteEditando(c.id);
-    setFCliente({ nome: c.nome, sobrenome: c.sobrenome, cpf: c.cpf, telefone: c.telefone, email: c.email || "", rua: c.rua, numero: c.numero, bairro: c.bairro, cidade: c.cidade, estado: c.estado, cep: c.cep || "" });
+    setFCliente({ nome: c.nome, sobrenome: c.sobrenome, cpf: c.cpf, telefone: c.telefone, email: c.email || "", rua: c.rua, numero: c.numero, complemento: c.complemento || "", bairro: c.bairro, cidade: c.cidade, estado: c.estado, cep: c.cep || "" });
     setErros({});
     setModal("editarCliente");
   }
@@ -397,7 +396,7 @@ export default function App() {
     const e = validarFCliente(clienteEditando);
     if (Object.keys(e).length) { setErros(e); return; }
     setClientes(p => p.map(c => c.id === clienteEditando ? { ...c, ...fCliente } : c));
-    setFCliente({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", bairro: "", cidade: "", estado: "", cep: "" });
+    setFCliente({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "" });
     closeModal();
   }
 
@@ -467,25 +466,7 @@ export default function App() {
     closeModal();
   }
 
-  function salvarServico() {
-    const e = {};
-    if (!fServico.nome.trim()) e.nome = "Nome é obrigatório";
-    if (!fServico.valor || Number(fServico.valor) <= 0) e.valor = "Valor deve ser maior que zero";
-    if (Object.keys(e).length) { setErros(e); return; }
-    if (editServico) {
-      setServicos(p => p.map(s => s.id === editServico.id ? { ...s, nome: fServico.nome, valor: parseFloat(fServico.valor) } : s));
-    } else {
-      setServicos(p => [...p, { id: Date.now(), nome: fServico.nome, valor: parseFloat(fServico.valor), ativo: true }]);
-    }
-    setFServico({ nome: "", valor: "" });
-    closeModal();
-  }
 
-  function abrirEditServico(sv) {
-    setEditServico(sv);
-    setFServico({ nome: sv.nome, valor: sv.valor });
-    openModal("servico");
-  }
 
   function avancarStatus(id) {
     const map = { agendada: "realizada", realizada: "paga" };
@@ -502,7 +483,6 @@ export default function App() {
     if (!confirmData) return;
     if (confirmData.tipo === "cancelarOrdem") setOrdens(p => p.map(o => o.id === confirmData.id ? { ...o, status: "cancelada" } : o));
     if (confirmData.tipo === "inativarCliente") setClientes(p => p.map(c => c.id === confirmData.id ? { ...c, ativo: false } : c));
-    if (confirmData.tipo === "inativarServico") setServicos(p => p.map(s => s.id === confirmData.id ? { ...s, ativo: false } : s));
     closeModal();
   }
 
@@ -553,15 +533,15 @@ export default function App() {
 
   const totalFaturado = ordens.filter(o => o.status === "paga").reduce((s, o) => s + totalOrdem(o), 0);
   const pendentes = ordens.filter(o => ["agendada", "realizada"].includes(o.status)).length;
-  const servicosAtivos = servicos.filter(s => s.ativo);
+  const servicosAtivos = servicos;
 
   // KPIs filtrados pelo mês atual
   const mesAtual = new Date().toISOString().slice(0, 7); // "2026-05"
   const ordensMes = ordens.filter(o => o.data.slice(0, 7) === mesAtual);
   const kpiMes = {
-    agendadas:  ordensMes.filter(o => o.status === "agendada").length,
+    agendadas: ordensMes.filter(o => o.status === "agendada").length,
     realizadas: ordensMes.filter(o => o.status === "realizada").length,
-    pagas:      ordensMes.filter(o => o.status === "paga").length,
+    pagas: ordensMes.filter(o => o.status === "paga").length,
     canceladas: ordensMes.filter(o => o.status === "cancelada").length,
     faturamento: ordensMes.filter(o => o.status === "paga").reduce((s, o) => s + totalOrdem(o), 0),
   };
@@ -581,7 +561,7 @@ export default function App() {
   }
 
   const abas = user?.perfil === "admin"
-    ? [["dashboard", "Dashboard"], ["clientes", "Clientes"], ["servicos", "Serviços"], ["ordens", "Ordens"], ["agenda", "Agenda"], ["relatorios", "Relatórios"]]
+    ? [["dashboard", "Dashboard"], ["clientes", "Clientes"], ["ordens", "Ordens"], ["agenda", "Agenda"], ["relatorios", "Relatórios"]]
     : [["agenda", "Agenda"]];
 
   if (!user) return (
@@ -728,105 +708,78 @@ export default function App() {
           </>)}
 
           {/* CLIENTES */}
-          {aba === "clientes" && (<>
-            <div className="page-header">
-              <h1 className="page-title">Clientes</h1>
-              <button className="btn-primary" onClick={() => openModal("cliente")}>+ Novo cliente</button>
-            </div>
-            <div className="card table-desktop">
-              <div className="table-wrap">
-                <table className="table">
-                  <thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Cidade</th><th>Status</th><th></th></tr></thead>
-                  <tbody>
-                    {clientes.map(c => (
-                      <tr key={c.id} style={{ opacity: c.ativo ? 1 : .5 }}>
-                        <td><strong>{c.nome} {c.sobrenome}</strong></td>
-                        <td style={{ color: "#6b7280", fontFamily: "monospace" }}>{c.cpf}</td>
-                        <td>{c.telefone}</td>
-                        <td>{c.cidade} / {c.estado}</td>
-                        <td><span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span></td>
-                        <td style={{ display: "flex", gap: 8 }}>
-                          {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
-                          {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
-                          {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div className="mobile-list">
-              {clientes.map(c => (
-                <div key={c.id} className="m-card" style={{ opacity: c.ativo ? 1 : .5 }}>
-                  <div className="m-card-row">
-                    <div className="m-card-title">{c.nome} {c.sobrenome}</div>
-                    <span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span>
-                  </div>
-                  <div className="m-card-sub">{c.cpf}</div>
-                  <div className="m-card-sub">{c.telefone} · {c.cidade}/{c.estado}</div>
-                  <div className="m-card-actions">
-                    {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
-                    {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
-                    {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
-                  </div>
+          {aba === "clientes" && (() => {
+            const clientesOrdenados = [...clientes].sort((a, b) => b.id - a.id);
+            const clientesFiltrados = clientesOrdenados.filter(c =>
+              `${c.nome} ${c.sobrenome}`.toLowerCase().includes(filtroBuscaCliente.toLowerCase())
+            );
+            const totalAtivos = clientes.filter(c => c.ativo).length;
+            return (<>
+              <div className="page-header">
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                  <h1 className="page-title">Clientes</h1>
+                  <span className="badge" style={{ background: "#e6f4ec", color: "#1f7a3e", fontSize: 13, fontWeight: 600 }}>
+                    {totalAtivos} ativo{totalAtivos !== 1 ? "s" : ""}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </>)}
-
-          {/* SERVIÇOS */}
-          {aba === "servicos" && (<>
-            <div className="page-header">
-              <h1 className="page-title">Serviços</h1>
-              <button className="btn-primary" onClick={() => { setFServico({ nome: "", valor: "" }); setEditServico(null); openModal("servico"); }}>+ Novo serviço</button>
-            </div>
-            <div className="card table-desktop">
-              <div className="table-wrap">
-                <table className="table">
-                  <thead><tr><th>Nome do serviço</th><th>Valor padrão</th><th>Status</th><th></th></tr></thead>
-                  <tbody>
-                    {servicos.map(sv => (
-                      <tr key={sv.id} style={{ opacity: sv.ativo ? 1 : .5 }}>
-                        <td><strong>{sv.nome}</strong></td>
-                        <td>R$ {Number(sv.valor).toFixed(2)}</td>
-                        <td><span className="badge" style={{ background: sv.ativo ? "#e6f4ec" : "#fdeaea", color: sv.ativo ? "#1f7a3e" : "#b83232" }}>{sv.ativo ? "Ativo" : "Inativo"}</span></td>
-                        <td style={{ display: "flex", gap: 8 }}>
-                          {sv.ativo && <>
-                            <button className="btn-sm" onClick={() => abrirEditServico(sv)}>Editar</button>
-                            <button className="btn-sm btn-danger" onClick={() => confirmar("inativarServico", sv.id, `Deseja inativar o serviço "${sv.nome}"?`)}>Inativar</button>
-                          </>}
-                          {!sv.ativo && <button className="btn-sm btn-advance" onClick={() => reativarServico(sv.id)}>Reativar</button>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <button className="btn-primary" onClick={() => openModal("cliente")}>+ Novo cliente</button>
               </div>
-            </div>
-            <div className="mobile-list">
-              {servicos.map(sv => (
-                <div key={sv.id} className="m-card" style={{ opacity: sv.ativo ? 1 : .5 }}>
-                  <div className="m-card-row">
-                    <div className="m-card-title">{sv.nome}</div>
-                    <strong>R$ {Number(sv.valor).toFixed(2)}</strong>
-                  </div>
-                  <span className="badge" style={{ background: sv.ativo ? "#e6f4ec" : "#fdeaea", color: sv.ativo ? "#1f7a3e" : "#b83232" }}>{sv.ativo ? "Ativo" : "Inativo"}</span>
-                  {sv.ativo && (
-                    <div className="m-card-actions">
-                      <button className="btn-sm" onClick={() => abrirEditServico(sv)}>Editar</button>
-                      <button className="btn-sm btn-danger" onClick={() => confirmar("inativarServico", sv.id, `Deseja inativar "${sv.nome}"?`)}>Inativar</button>
-                    </div>
-                  )}
-                  {!sv.ativo && (
-                    <div className="m-card-actions">
-                      <button className="btn-sm btn-advance" onClick={() => reativarServico(sv.id)}>Reativar</button>
-                    </div>
-                  )}
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="🔍  Buscar por nome do cliente..."
+                  value={filtroBuscaCliente}
+                  onChange={e => setFiltroBuscaCliente(e.target.value)}
+                  style={{ maxWidth: 360 }}
+                />
+              </div>
+              <div className="card table-desktop">
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Cidade</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                      {clientesFiltrados.length === 0 && (
+                        <tr><td colSpan={6} className="empty">Nenhum cliente encontrado.</td></tr>
+                      )}
+                      {clientesFiltrados.map(c => (
+                        <tr key={c.id} style={{ opacity: c.ativo ? 1 : .5 }}>
+                          <td><strong>{c.nome} {c.sobrenome}</strong></td>
+                          <td style={{ color: "#6b7280", fontFamily: "monospace" }}>{c.cpf}</td>
+                          <td>{c.telefone}</td>
+                          <td>{c.cidade} / {c.estado}</td>
+                          <td><span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span></td>
+                          <td style={{ display: "flex", gap: 8 }}>
+                            {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
+                            {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
+                            {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
-            </div>
-          </>)}
+              </div>
+              <div className="mobile-list">
+                {clientesFiltrados.length === 0 && <p className="empty">Nenhum cliente encontrado.</p>}
+                {clientesFiltrados.map(c => (
+                  <div key={c.id} className="m-card" style={{ opacity: c.ativo ? 1 : .5 }}>
+                    <div className="m-card-row">
+                      <div className="m-card-title">{c.nome} {c.sobrenome}</div>
+                      <span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span>
+                    </div>
+                    <div className="m-card-sub">{c.cpf}</div>
+                    <div className="m-card-sub">{c.telefone} · {c.cidade}/{c.estado}</div>
+                    <div className="m-card-actions">
+                      {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
+                      {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
+                      {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>);
+          })()}
 
           {/* ORDENS */}
           {aba === "ordens" && (<>
@@ -999,7 +952,7 @@ export default function App() {
         <Modal title="Novo cliente" onClose={closeModal} footer={<><button className="btn-sm" onClick={closeModal}>Cancelar</button><button className="btn-primary" onClick={salvarCliente}>Salvar cliente</button></>}>
           <div className="form-row cols2">
             <FInput label="Nome" required value={fCliente.nome} onChange={e => setFCliente(p => ({ ...p, nome: e.target.value }))} error={erros.nome} />
-            <FInput label="Sobrenome" required value={fCliente.sobrenome} onChange={e => setFCliente(p => ({ ...p, sobrenome: e.target.value }))} error={erros.sobrenome} />
+            <FInput label="Sobrenome" value={fCliente.sobrenome} onChange={e => setFCliente(p => ({ ...p, sobrenome: e.target.value }))} />
           </div>
           <div className="form-row cols2">
             <FInput label="CPF" required placeholder="000.000.000-00" value={fCliente.cpf} onChange={e => setFCliente(p => ({ ...p, cpf: fmtCPF(e.target.value) }))} error={erros.cpf} />
@@ -1012,6 +965,7 @@ export default function App() {
             <FInput label="Rua" required value={fCliente.rua} onChange={e => setFCliente(p => ({ ...p, rua: e.target.value }))} error={erros.rua} />
             <FInput label="Número" required value={fCliente.numero} onChange={e => setFCliente(p => ({ ...p, numero: e.target.value }))} error={erros.numero} />
           </div>
+          <FInput label="Complemento" placeholder="Apto 12, Bloco B, Casa dos fundos..." value={fCliente.complemento} onChange={e => setFCliente(p => ({ ...p, complemento: e.target.value }))} />
           <div className="form-row cols3">
             <FInput label="Bairro" required value={fCliente.bairro} onChange={e => setFCliente(p => ({ ...p, bairro: e.target.value }))} error={erros.bairro} />
             <FInput label="Cidade" required value={fCliente.cidade} onChange={e => setFCliente(p => ({ ...p, cidade: e.target.value }))} error={erros.cidade} />
@@ -1025,7 +979,7 @@ export default function App() {
         <Modal title="Editar cliente" onClose={closeModal} footer={<><button className="btn-cancel-red" onClick={closeModal}>Cancelar</button><button className="btn-success" onClick={salvarEdicaoCliente}>Salvar alterações</button></>}>
           <div className="form-row cols2">
             <FInput label="Nome" required value={fCliente.nome} onChange={e => setFCliente(p => ({ ...p, nome: e.target.value }))} error={erros.nome} />
-            <FInput label="Sobrenome" required value={fCliente.sobrenome} onChange={e => setFCliente(p => ({ ...p, sobrenome: e.target.value }))} error={erros.sobrenome} />
+            <FInput label="Sobrenome" value={fCliente.sobrenome} onChange={e => setFCliente(p => ({ ...p, sobrenome: e.target.value }))} />
           </div>
           <div className="form-row cols2">
             <FInput label="CPF" required placeholder="000.000.000-00" value={fCliente.cpf} onChange={e => setFCliente(p => ({ ...p, cpf: fmtCPF(e.target.value) }))} error={erros.cpf} />
@@ -1038,6 +992,7 @@ export default function App() {
             <FInput label="Rua" required value={fCliente.rua} onChange={e => setFCliente(p => ({ ...p, rua: e.target.value }))} error={erros.rua} />
             <FInput label="Número" required value={fCliente.numero} onChange={e => setFCliente(p => ({ ...p, numero: e.target.value }))} error={erros.numero} />
           </div>
+          <FInput label="Complemento" placeholder="Apto 12, Bloco B, Casa dos fundos..." value={fCliente.complemento} onChange={e => setFCliente(p => ({ ...p, complemento: e.target.value }))} />
           <div className="form-row cols3">
             <FInput label="Bairro" required value={fCliente.bairro} onChange={e => setFCliente(p => ({ ...p, bairro: e.target.value }))} error={erros.bairro} />
             <FInput label="Cidade" required value={fCliente.cidade} onChange={e => setFCliente(p => ({ ...p, cidade: e.target.value }))} error={erros.cidade} />
@@ -1046,14 +1001,7 @@ export default function App() {
         </Modal>
       )}
 
-      {/* MODAL SERVIÇO */}
-      {modal === "servico" && (
-        <Modal title={editServico ? "Editar serviço" : "Novo serviço"} onClose={closeModal} footer={<><button className="btn-sm" onClick={closeModal}>Cancelar</button><button className="btn-primary" onClick={salvarServico}>{editServico ? "Salvar alterações" : "Cadastrar"}</button></>}>
-          <FInput label="Nome do serviço" required placeholder="Ex: Limpeza de sofá 3 lugares" value={fServico.nome} onChange={e => setFServico(p => ({ ...p, nome: e.target.value }))} error={erros.nome} />
-          <FInput label="Valor padrão (R$)" required type="number" min="0.01" step="0.01" placeholder="0,00" value={fServico.valor} onChange={e => setFServico(p => ({ ...p, valor: e.target.value }))} error={erros.valor} />
-          <p style={{ fontSize: 12, color: "#6b7280", marginTop: -8 }}>O valor pode ser ajustado em cada ordem de serviço.</p>
-        </Modal>
-      )}
+
 
       {/* MODAL ORDEM */}
       {modal === "ordem" && (
@@ -1081,7 +1029,7 @@ export default function App() {
                   onChange={e => {
                     const pred = servicosAtivos.find(s => String(s.id) === e.target.value);
                     setOrdemSvcField(i, "servicoId", e.target.value);
-                    if (pred) { setOrdemSvcField(i, "nome", pred.nome); setOrdemSvcField(i, "valor", pred.valor); }
+                    if (pred) { setOrdemSvcField(i, "nome", pred.nome); setOrdemSvcField(i, "valor", ""); }
                     else { setOrdemSvcField(i, "nome", ""); setOrdemSvcField(i, "valor", ""); }
                   }}>
                   <option value="__livre">Personalizado...</option>
@@ -1131,7 +1079,7 @@ export default function App() {
                   onChange={e => {
                     const pred = servicosAtivos.find(s => String(s.id) === e.target.value);
                     setOrdemSvcField(i, "servicoId", e.target.value);
-                    if (pred) { setOrdemSvcField(i, "nome", pred.nome); setOrdemSvcField(i, "valor", pred.valor); }
+                    if (pred) { setOrdemSvcField(i, "nome", pred.nome); setOrdemSvcField(i, "valor", ""); }
                     else { setOrdemSvcField(i, "nome", ""); setOrdemSvcField(i, "valor", ""); }
                   }}>
                   <option value="__livre">Personalizado...</option>
