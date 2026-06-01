@@ -313,21 +313,22 @@ export default function App() {
   ]);
 
   const [ordens, setOrdens] = useState([
-    { id: 1, clienteId: 1, funcionarioId: 2, data: "2026-05-28", hora: "09:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "Sofá com mancha no canto esquerdo. Acesso pelo portão lateral." },
-    { id: 2, clienteId: 2, funcionarioId: 3, data: "2026-05-29", hora: "14:00", status: "realizada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Cliente pediu para ligar 30min antes de chegar." },
-    { id: 3, clienteId: 1, funcionarioId: 2, data: "2026-05-25", hora: "10:00", status: "paga", servicos: [{ nome: "Lavagem de Tapete", qtd: 3, valor: 180 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
-    { id: 4, clienteId: 2, funcionarioId: 3, data: "2026-04-15", hora: "11:00", status: "paga", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }, { nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Tapete persa delicado, usar produto neutro." },
-    { id: 5, clienteId: 1, funcionarioId: 2, data: "2026-03-10", hora: "14:00", status: "paga", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
-    { id: 6, clienteId: 3, funcionarioId: 2, data: "2026-05-27", hora: "10:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "Tapete de lã, usar produto específico." },
-    { id: 7, clienteId: 4, funcionarioId: 3, data: "2026-05-28", hora: "11:30", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }, { nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "Sofá retrátil com 4 módulos. Portão eletrônico, ligar ao chegar." },
-    { id: 8, clienteId: 5, funcionarioId: 2, data: "2026-05-30", hora: "09:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 1, valor: 180 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "" },
-    { id: 9, clienteId: 1, funcionarioId: 3, data: "2026-06-02", hora: "14:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Rua das Flores, 10 - Centro", obs: "Segunda impermeabilização do ano. Checar resultado da anterior." },
-    { id: 10, clienteId: 2, funcionarioId: 2, data: "2026-06-04", hora: "08:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 3, valor: 250 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Três sofás de 2 lugares. Preferência por horário matutino." },
-    { id: 11, clienteId: 4, funcionarioId: 3, data: "2026-06-05", hora: "15:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }, { nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "" },
+    { id: 1, numero: 100, clienteId: 1, funcionarioId: 2, data: "2026-05-28", hora: "09:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "Sofá com mancha no canto esquerdo. Acesso pelo portão lateral." },
+    { id: 2, numero: 101, clienteId: 2, funcionarioId: 3, data: "2026-05-29", hora: "14:00", status: "realizada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Cliente pediu para ligar 30min antes de chegar." },
+    { id: 3, numero: 102, clienteId: 1, funcionarioId: 2, data: "2026-05-25", hora: "10:00", status: "paga", servicos: [{ nome: "Lavagem de Tapete", qtd: 3, valor: 180 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 4, numero: 103, clienteId: 2, funcionarioId: 3, data: "2026-04-15", hora: "11:00", status: "paga", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }, { nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Tapete persa delicado, usar produto neutro." },
+    { id: 5, numero: 104, clienteId: 1, funcionarioId: 2, data: "2026-03-10", hora: "14:00", status: "paga", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 6, numero: 105, clienteId: 3, funcionarioId: 2, data: "2026-05-27", hora: "10:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "Tapete de lã, usar produto específico." },
+    { id: 7, numero: 106, clienteId: 4, funcionarioId: 3, data: "2026-05-28", hora: "11:30", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }, { nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "Sofá retrátil com 4 módulos. Portão eletrônico, ligar ao chegar." },
+    { id: 8, numero: 107, clienteId: 5, funcionarioId: 2, data: "2026-05-30", hora: "09:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 1, valor: 180 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "" },
+    { id: 9, numero: 108, clienteId: 1, funcionarioId: 3, data: "2026-06-02", hora: "14:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Rua das Flores, 10 - Centro", obs: "Segunda impermeabilização do ano. Checar resultado da anterior." },
+    { id: 10, numero: 109, clienteId: 2, funcionarioId: 2, data: "2026-06-04", hora: "08:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 3, valor: 250 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Três sofás de 2 lugares. Preferência por horário matutino." },
+    { id: 11, numero: 110, clienteId: 4, funcionarioId: 3, data: "2026-06-05", hora: "15:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }, { nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "" },
   ]);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
+  const [proximoNumeroOS, setProximoNumeroOS] = useState(111);
   const [loginErro, setLoginErro] = useState("");
   const [modal, setModal] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
@@ -346,6 +347,9 @@ export default function App() {
   const [ordemAvancando, setOrdemAvancando] = useState(null);
   const [clienteEditando, setClienteEditando] = useState(null);
   const [filtroBuscaCliente, setFiltroBuscaCliente] = useState("");
+  const [filtroOrdemCliente, setFiltroOrdemCliente] = useState("");
+  const [filtroOrdemInicio, setFiltroOrdemInicio] = useState("");
+  const [filtroOrdemFim, setFiltroOrdemFim] = useState("");
 
   const funcionarios = USERS.filter(u => u.perfil === "funcionario");
 
@@ -412,13 +416,15 @@ export default function App() {
     if (!svs.length) e.servicos = "Adicione pelo menos um serviço com valor.";
     if (Object.keys(e).length) { setErros(e); return; }
     const cli = clientes.find(c => c.id === parseInt(fOrdem.clienteId));
+    const novoNumero = proximoNumeroOS;
     setOrdens(p => [...p, {
-      id: Date.now(), clienteId: parseInt(fOrdem.clienteId), funcionarioId: parseInt(fOrdem.funcionarioId),
+      id: Date.now(), numero: novoNumero, clienteId: parseInt(fOrdem.clienteId), funcionarioId: parseInt(fOrdem.funcionarioId),
       data: fOrdem.data, hora: fOrdem.hora, status: "agendada",
       servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor) })),
       endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`,
       obs: fOrdem.obs || ""
     }]);
+    setProximoNumeroOS(n => n + 1);
     setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
     closeModal();
   }
@@ -782,68 +788,123 @@ export default function App() {
           })()}
 
           {/* ORDENS */}
-          {aba === "ordens" && (<>
-            <div className="page-header">
-              <h1 className="page-title">Ordens de serviço</h1>
-              <button className="btn-primary" onClick={() => openModal("ordem")}>+ Nova ordem</button>
-            </div>
-            <div className="card table-desktop">
-              <div className="table-wrap">
-                <table className="table">
-                  <thead><tr><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Serviços</th><th>Total</th><th>Status</th><th></th></tr></thead>
-                  <tbody>
-                    {ordens.map(o => {
-                      const cli = clientes.find(c => c.id === o.clienteId);
-                      const func = USERS.find(u => u.id === o.funcionarioId);
-                      return (
-                        <tr key={o.id}>
-                          <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
-                          <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
-                          <td>{func?.nome}</td>
-                          <td style={{ color: "#6b7280", fontSize: 13 }}>{o.servicos.map(s => s.nome).join(", ")}</td>
-                          <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
-                          <td><Badge status={o.status} /></td>
-                          <td style={{ display: "flex", gap: 6 }}>
-                            <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver</button>
-                            {o.status === "agendada" && <button className="btn-sm" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
-                            {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
-                            {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
-                            {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem? Esta ação não pode ser desfeita.")}>Cancelar</button>}
-                            {o.status === "cancelada" && <button className="btn-sm btn-advance" onClick={() => reativarOrdem(o.id)}>Reativar</button>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+          {aba === "ordens" && (() => {
+            const ordensFiltradas = ordens.filter(o => {
+              const cli = clientes.find(c => c.id === o.clienteId);
+              const nomeCliente = `${cli?.nome || ""} ${cli?.sobrenome || ""}`.toLowerCase();
+              if (filtroOrdemCliente && !nomeCliente.includes(filtroOrdemCliente.toLowerCase())) return false;
+              if (filtroOrdemInicio && o.data < filtroOrdemInicio) return false;
+              if (filtroOrdemFim && o.data > filtroOrdemFim) return false;
+              return true;
+            }).sort((a, b) => b.data.localeCompare(a.data) || b.hora.localeCompare(a.hora));
+            const temFiltro = filtroOrdemCliente || filtroOrdemInicio || filtroOrdemFim;
+            return (<>
+              <div className="page-header">
+                <h1 className="page-title">Ordens de serviço</h1>
+                <button className="btn-primary" onClick={() => openModal("ordem")}>+ Nova ordem</button>
               </div>
-            </div>
-            <div className="mobile-list">
-              {ordens.map(o => {
-                const cli = clientes.find(c => c.id === o.clienteId);
-                const func = USERS.find(u => u.id === o.funcionarioId);
-                return (
-                  <div key={o.id} className="m-card">
-                    <div className="m-card-row">
-                      <div className="m-card-title">{cli?.nome} {cli?.sobrenome}</div>
-                      <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
+              {/* Filtros */}
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "flex-end" }}>
+                <div style={{ flex: "1 1 200px", minWidth: 180 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Buscar cliente</div>
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="🔍  Nome do cliente..."
+                    value={filtroOrdemCliente}
+                    onChange={e => setFiltroOrdemCliente(e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: "0 1 160px", minWidth: 140 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Data início</div>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={filtroOrdemInicio}
+                    onChange={e => setFiltroOrdemInicio(e.target.value)}
+                  />
+                </div>
+                <div style={{ flex: "0 1 160px", minWidth: 140 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Data fim</div>
+                  <input
+                    className="form-input"
+                    type="date"
+                    value={filtroOrdemFim}
+                    onChange={e => setFiltroOrdemFim(e.target.value)}
+                  />
+                </div>
+                {temFiltro && (
+                  <button className="btn-sm" style={{ alignSelf: "flex-end", marginBottom: 1 }} onClick={() => { setFiltroOrdemCliente(""); setFiltroOrdemInicio(""); setFiltroOrdemFim(""); }}>
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+              <div className="card table-desktop">
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead><tr><th>OS #</th><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Serviços</th><th>Total</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                      {ordensFiltradas.length === 0 && (
+                        <tr><td colSpan={8} className="empty">Nenhuma ordem encontrada.</td></tr>
+                      )}
+                      {ordensFiltradas.map(o => {
+                        const cli = clientes.find(c => c.id === o.clienteId);
+                        const func = USERS.find(u => u.id === o.funcionarioId);
+                        return (
+                          <tr key={o.id}>
+                            <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#5b3fa6" }}>#{o.numero}</td>
+                            <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
+                            <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
+                            <td>{func?.nome}</td>
+                            <td style={{ color: "#6b7280", fontSize: 13 }}>{o.servicos.map(s => s.nome).join(", ")}</td>
+                            <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
+                            <td><Badge status={o.status} /></td>
+                            <td style={{ display: "flex", gap: 6 }}>
+                              <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver</button>
+                              {o.status === "agendada" && <button className="btn-sm" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
+                              {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
+                              {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
+                              {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem? Esta ação não pode ser desfeita.")}>Cancelar</button>}
+                              {o.status === "cancelada" && <button className="btn-sm btn-advance" onClick={() => reativarOrdem(o.id)}>Reativar</button>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="mobile-list">
+                {ordensFiltradas.length === 0 && <p className="empty">Nenhuma ordem encontrada.</p>}
+                {ordensFiltradas.map(o => {
+                  const cli = clientes.find(c => c.id === o.clienteId);
+                  const func = USERS.find(u => u.id === o.funcionarioId);
+                  return (
+                    <div key={o.id} className="m-card">
+                      <div className="m-card-row">
+                        <div>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", letterSpacing: ".5px" }}>OS #{o.numero}</span>
+                          <div className="m-card-title" style={{ marginTop: 2 }}>{cli?.nome} {cli?.sobrenome}</div>
+                        </div>
+                        <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
+                      </div>
+                      <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
+                      <div className="m-card-sub" style={{ fontSize: 12, color: "#9ca3af" }}>{o.servicos.map(s => s.nome).join(", ")}</div>
+                      <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
+                      <div className="m-card-actions">
+                        <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver detalhes</button>
+                        {o.status === "agendada" && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
+                        {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
+                        {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
+                        {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem?")}>Cancelar</button>}
+                        {o.status === "cancelada" && <button className="btn-sm btn-advance" onClick={() => reativarOrdem(o.id)}>Reativar</button>}
+                      </div>
                     </div>
-                    <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
-                    <div className="m-card-sub" style={{ fontSize: 12, color: "#9ca3af" }}>{o.servicos.map(s => s.nome).join(", ")}</div>
-                    <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
-                    <div className="m-card-actions">
-                      <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver detalhes</button>
-                      {o.status === "agendada" && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
-                      {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
-                      {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
-                      {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem?")}>Cancelar</button>}
-                      {o.status === "cancelada" && <button className="btn-sm btn-advance" onClick={() => reativarOrdem(o.id)}>Reativar</button>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>)}
+                  );
+                })}
+              </div>
+            </>);
+          })()}
 
           {/* AGENDA */}
           {aba === "agenda" && (<>
@@ -867,6 +928,7 @@ export default function App() {
               return (
                 <div key={o.id} className="agenda-card" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
                   <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", marginBottom: 2 }}>OS #{o.numero}</div>
                     <div className="agenda-card-name">{cli?.nome} {cli?.sobrenome}</div>
                     <div className="agenda-card-sub">{fmtData(o.data)} às {o.hora} · {func?.nome}</div>
                     <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>{o.servicos.map(s => s.nome).join(", ")}</div>
@@ -1109,7 +1171,7 @@ export default function App() {
         const cli = clientes.find(c => c.id === o.clienteId);
         const func = USERS.find(u => u.id === o.funcionarioId);
         return (
-          <Modal title="Detalhes da ordem" onClose={closeModal} footer={<button className="btn-sm" onClick={closeModal}>Fechar</button>}>
+          <Modal title={`Detalhes da OS #${o.numero}`} onClose={closeModal} footer={<button className="btn-sm" onClick={closeModal}>Fechar</button>}>
             <div className="detail-grid">
               <div><div className="detail-label">Cliente</div><div className="detail-value">{cli?.nome} {cli?.sobrenome}</div></div>
               <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
@@ -1143,7 +1205,7 @@ export default function App() {
         const proximoLabel = o.status === "agendada" ? "Realizado" : "Pago";
         return (
           <Modal
-            title={`Confirmar: Marcar como ${proximoLabel}`}
+            title={`OS #${o.numero} — Marcar como ${proximoLabel}`}
             onClose={closeModal}
             footer={<>
               <button className="btn-cancel-red" onClick={closeModal}>Cancelar</button>
