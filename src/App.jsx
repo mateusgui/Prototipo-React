@@ -179,11 +179,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 /* ── ORDENS FILTROS ── */
 .ordens-filtros{display:flex;gap:10px;margin-bottom:16px;align-items:flex-end}
 .ordens-filtro-nome{flex:1 1 200px}
-.ordens-filtro-datas{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.ordens-filtro-datas{display:flex;gap:10px;align-items:flex-end;flex-shrink:0}
 
 /* ── AGENDA FILTROS ── */
 .agenda-filter-bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:16px}
 .agenda-filter-right{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+
+/* ── PAGINAÇÃO GERAL ── */
+.paginacao{display:flex;justify-content:center;align-items:center;gap:12px;padding:14px 0 4px}
+.paginacao-pad{padding-bottom:0}
 
 /* ── AGENDA PAGINAÇÃO ── */
 .agenda-day-sep{background:#e8eaed;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;color:#4b5563;letter-spacing:.4px;margin:16px 0 8px;border:1px solid #d1d5db}
@@ -267,12 +271,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .modal{border-radius:18px 18px 0 0;max-height:95vh}
   .ordens-filtros{flex-direction:column;align-items:stretch}
   .ordens-filtro-nome{flex:none}
-  .ordens-filtro-datas{flex-wrap:nowrap}
+  .ordens-filtro-datas{flex-shrink:1}
   .agenda-filter-bar{display:flex;flex-direction:column;gap:10px;align-items:stretch}
   .agenda-filter-right{justify-content:center;order:-1}
   .agenda-filter-spacer{display:none}
   .agenda-paginacao{position:fixed;bottom:calc(60px + env(safe-area-inset-bottom));left:0;right:0;background:#fff;border-top:1px solid #e2e5ea;z-index:40;padding:10px 20px;justify-content:space-between}
   .agenda-list{padding-bottom:60px}
+  .paginacao{position:fixed;bottom:calc(60px + env(safe-area-inset-bottom));left:0;right:0;background:#fff;border-top:1px solid #e2e5ea;z-index:40;padding:10px 20px;justify-content:space-between}
+  .paginacao-pad{padding-bottom:60px}
 }
 @media(min-width:701px){
   .modal-overlay{align-items:center;padding:20px}
@@ -465,6 +471,9 @@ export default function App() {
   const [filtroData, setFiltroData] = useState("");
   const [filtroStatusAgenda, setFiltroStatusAgenda] = useState("agendado");
   const [agendaPagina, setAgendaPagina] = useState(0);
+  const [dashPagina, setDashPagina] = useState(0);
+  const [clientesPagina, setClientesPagina] = useState(0);
+  const [ordensPagina, setOrdensPagina] = useState(0);
   const [relInicio, setRelInicio] = useState("2026-01");
   const [relFim, setRelFim] = useState("2026-05");
   const [relServico, setRelServico] = useState("");
@@ -813,7 +822,7 @@ export default function App() {
     const outros = ordensDashMes
       .filter(o => !["agendada", "agendamento_pago"].includes(o.status))
       .sort((a, b) => b.numero - a.numero);
-    return [...pendentes, ...outros].slice(0, 6);
+    return [...pendentes, ...outros];
   })();
 
   function setOrdemSvcField(i, field, val) {
@@ -905,14 +914,14 @@ export default function App() {
                 className="form-input"
                 style={{ width: "auto", fontSize: 13, padding: "4px 10px" }}
                 value={dashMes}
-                onChange={e => { setDashMes(e.target.value); setDashFiltroStatus(null); }}
+                onChange={e => { setDashMes(e.target.value); setDashFiltroStatus(null); setDashPagina(0); }}
               />
             </div>
             <div className="stat-grid">
               <div
                 className="stat-card blue clickable"
                 style={dashFiltroStatus === "agendada" ? { outline: "2px solid #1a6fbb", outlineOffset: "0" } : {}}
-                onClick={() => setDashFiltroStatus(p => p === "agendada" ? null : "agendada")}
+                onClick={() => { setDashFiltroStatus(p => p === "agendada" ? null : "agendada"); setDashPagina(0); }}
               >
                 <div className="stat-label">Agendadas</div>
                 <div className="stat-sublabel">{fmtMes(dashMes)}</div>
@@ -921,7 +930,7 @@ export default function App() {
               <div
                 className="stat-card orange clickable"
                 style={dashFiltroStatus === "agendamento_pago" ? { outline: "2px solid #b85e1a", outlineOffset: "0" } : {}}
-                onClick={() => setDashFiltroStatus(p => p === "agendamento_pago" ? null : "agendamento_pago")}
+                onClick={() => { setDashFiltroStatus(p => p === "agendamento_pago" ? null : "agendamento_pago"); setDashPagina(0); }}
               >
                 <div className="stat-label">Pendente de Execução</div>
                 <div className="stat-sublabel">Agendamento Pago</div>
@@ -930,7 +939,7 @@ export default function App() {
               <div
                 className="stat-card purple clickable"
                 style={dashFiltroStatus === "realizada" ? { outline: "2px solid #5b3fa6", outlineOffset: "0" } : {}}
-                onClick={() => setDashFiltroStatus(p => p === "realizada" ? null : "realizada")}
+                onClick={() => { setDashFiltroStatus(p => p === "realizada" ? null : "realizada"); setDashPagina(0); }}
               >
                 <div className="stat-label">Pendente de Pagamento</div>
                 <div className="stat-sublabel">Executado, não pago</div>
@@ -950,57 +959,73 @@ export default function App() {
                 {!dashFiltroStatus && `Recentes — ${fmtMes(dashMes)}`}
               </span>
               {dashFiltroStatus && (
-                <button className="btn-sm" onClick={() => setDashFiltroStatus(null)}>Limpar filtro</button>
+                <button className="btn-sm" onClick={() => { setDashFiltroStatus(null); setDashPagina(0); }}>Limpar filtro</button>
               )}
             </div>
-            {/* desktop table */}
-            <div className="card table-desktop">
-              <div className="table-wrap">
-                <table className="table">
-                  <thead><tr><th>#OS</th><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Total</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {ordensDashboard.length === 0 && (
-                      <tr><td colSpan={6} style={{ textAlign: "center", color: "#9ca3af", padding: "20px 0" }}>Nenhuma ordem encontrada.</td></tr>
-                    )}
-                    {ordensDashboard.map(o => {
+            {(() => {
+              const pagSize = 10;
+              const totalPags = Math.ceil(ordensDashboard.length / pagSize);
+              const paginadas = ordensDashboard.slice(dashPagina * pagSize, (dashPagina + 1) * pagSize);
+              return (<>
+                <div className="paginacao-pad">
+                  {/* desktop table */}
+                  <div className="card table-desktop">
+                    <div className="table-wrap">
+                      <table className="table">
+                        <thead><tr><th>#OS</th><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Total</th><th>Status</th></tr></thead>
+                        <tbody>
+                          {paginadas.length === 0 && (
+                            <tr><td colSpan={6} style={{ textAlign: "center", color: "#9ca3af", padding: "20px 0" }}>Nenhuma ordem encontrada.</td></tr>
+                          )}
+                          {paginadas.map(o => {
+                            const cli = clientes.find(c => c.id === o.clienteId);
+                            const func = usuarios.find(u => u.id === o.funcionarioId);
+                            return (
+                              <tr key={o.id} style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
+                                <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#5b3fa6" }}>#{o.numero}</td>
+                                <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
+                                <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
+                                <td>{func?.nome}</td>
+                                <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
+                                <td><Badge status={o.status} /></td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  {/* mobile cards */}
+                  <div className="mobile-list">
+                    {paginadas.length === 0 && <p className="empty">Nenhuma ordem encontrada.</p>}
+                    {paginadas.map(o => {
                       const cli = clientes.find(c => c.id === o.clienteId);
                       const func = usuarios.find(u => u.id === o.funcionarioId);
                       return (
-                        <tr key={o.id} style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
-                          <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#5b3fa6" }}>#{o.numero}</td>
-                          <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
-                          <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
-                          <td>{func?.nome}</td>
-                          <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
-                          <td><Badge status={o.status} /></td>
-                        </tr>
+                        <div key={o.id} className="m-card" style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
+                          <div className="m-card-row">
+                            <div>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", letterSpacing: ".5px" }}>OS #{o.numero}</span>
+                              <div className="m-card-title" style={{ marginTop: 2 }}>{cli?.nome} {cli?.sobrenome}</div>
+                            </div>
+                            <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
+                          </div>
+                          <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
+                          <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
+                        </div>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            {/* mobile cards */}
-            <div className="mobile-list">
-              {ordensDashboard.length === 0 && <p className="empty">Nenhuma ordem encontrada.</p>}
-              {ordensDashboard.map(o => {
-                const cli = clientes.find(c => c.id === o.clienteId);
-                const func = usuarios.find(u => u.id === o.funcionarioId);
-                return (
-                  <div key={o.id} className="m-card" style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
-                    <div className="m-card-row">
-                      <div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", letterSpacing: ".5px" }}>OS #{o.numero}</span>
-                        <div className="m-card-title" style={{ marginTop: 2 }}>{cli?.nome} {cli?.sobrenome}</div>
-                      </div>
-                      <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
-                    </div>
-                    <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
-                    <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+                {totalPags > 1 && (
+                  <div className="paginacao">
+                    <button className="pag-btn" disabled={dashPagina === 0} onClick={() => setDashPagina(p => p - 1)}>← Anterior</button>
+                    <span className="pag-info">Página {dashPagina + 1} de {totalPags}</span>
+                    <button className="pag-btn" disabled={dashPagina >= totalPags - 1} onClick={() => setDashPagina(p => p + 1)}>Próxima →</button>
+                  </div>
+                )}
+              </>);
+            })()}
           </>)}
 
           {/* FUNCIONÁRIOS */}
@@ -1053,54 +1078,70 @@ export default function App() {
                   type="text"
                   placeholder="🔍  Buscar por nome do cliente..."
                   value={filtroBuscaCliente}
-                  onChange={e => setFiltroBuscaCliente(e.target.value)}
+                  onChange={e => { setFiltroBuscaCliente(e.target.value); setClientesPagina(0); }}
                   style={{ maxWidth: 360 }}
                 />
               </div>
-              <div className="card table-desktop">
-                <div className="table-wrap">
-                  <table className="table">
-                    <thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Cidade</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                      {clientesFiltrados.length === 0 && (
-                        <tr><td colSpan={6} className="empty">Nenhum cliente encontrado.</td></tr>
-                      )}
-                      {clientesFiltrados.map(c => (
-                        <tr key={c.id} style={{ opacity: c.ativo ? 1 : .5, cursor: "pointer" }} onClick={() => { setHistoricoClienteId(c.id); openModal("historicoCliente"); }}>
-                          <td><strong>{c.nome} {c.sobrenome}</strong></td>
-                          <td style={{ color: "#6b7280", fontFamily: "monospace" }}>{c.cpf}</td>
-                          <td>{c.telefone}</td>
-                          <td>{c.cidade} / {c.estado}</td>
-                          <td><span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span></td>
-                          <td style={{ display: "flex", gap: 8 }} onClick={e => e.stopPropagation()}>
+              {(() => {
+                const pagSize = 10;
+                const totalPags = Math.ceil(clientesFiltrados.length / pagSize);
+                const paginadas = clientesFiltrados.slice(clientesPagina * pagSize, (clientesPagina + 1) * pagSize);
+                return (<>
+                  <div className="paginacao-pad">
+                    <div className="card table-desktop">
+                      <div className="table-wrap">
+                        <table className="table">
+                          <thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Cidade</th><th>Status</th><th></th></tr></thead>
+                          <tbody>
+                            {paginadas.length === 0 && (
+                              <tr><td colSpan={6} className="empty">Nenhum cliente encontrado.</td></tr>
+                            )}
+                            {paginadas.map(c => (
+                              <tr key={c.id} style={{ opacity: c.ativo ? 1 : .5, cursor: "pointer" }} onClick={() => { setHistoricoClienteId(c.id); openModal("historicoCliente"); }}>
+                                <td><strong>{c.nome} {c.sobrenome}</strong></td>
+                                <td style={{ color: "#6b7280", fontFamily: "monospace" }}>{c.cpf}</td>
+                                <td>{c.telefone}</td>
+                                <td>{c.cidade} / {c.estado}</td>
+                                <td><span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span></td>
+                                <td style={{ display: "flex", gap: 8 }} onClick={e => e.stopPropagation()}>
+                                  {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
+                                  {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
+                                  {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div className="mobile-list">
+                      {paginadas.length === 0 && <p className="empty">Nenhum cliente encontrado.</p>}
+                      {paginadas.map(c => (
+                        <div key={c.id} className="m-card" style={{ opacity: c.ativo ? 1 : .5, cursor: "pointer" }} onClick={() => { setHistoricoClienteId(c.id); openModal("historicoCliente"); }}>
+                          <div className="m-card-row">
+                            <div className="m-card-title">{c.nome} {c.sobrenome}</div>
+                            <span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span>
+                          </div>
+                          <div className="m-card-sub">{c.cpf}</div>
+                          <div className="m-card-sub">{c.telefone} · {c.cidade}/{c.estado}</div>
+                          <div className="m-card-actions" onClick={e => e.stopPropagation()}>
                             {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
                             {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
                             {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="mobile-list">
-                {clientesFiltrados.length === 0 && <p className="empty">Nenhum cliente encontrado.</p>}
-                {clientesFiltrados.map(c => (
-                  <div key={c.id} className="m-card" style={{ opacity: c.ativo ? 1 : .5, cursor: "pointer" }} onClick={() => { setHistoricoClienteId(c.id); openModal("historicoCliente"); }}>
-                    <div className="m-card-row">
-                      <div className="m-card-title">{c.nome} {c.sobrenome}</div>
-                      <span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span>
-                    </div>
-                    <div className="m-card-sub">{c.cpf}</div>
-                    <div className="m-card-sub">{c.telefone} · {c.cidade}/{c.estado}</div>
-                    <div className="m-card-actions" onClick={e => e.stopPropagation()}>
-                      {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
-                      {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
-                      {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
                     </div>
                   </div>
-                ))}
-              </div>
+                  {totalPags > 1 && (
+                    <div className="paginacao">
+                      <button className="pag-btn" disabled={clientesPagina === 0} onClick={() => setClientesPagina(p => p - 1)}>← Anterior</button>
+                      <span className="pag-info">Página {clientesPagina + 1} de {totalPags}</span>
+                      <button className="pag-btn" disabled={clientesPagina >= totalPags - 1} onClick={() => setClientesPagina(p => p + 1)}>Próxima →</button>
+                    </div>
+                  )}
+                </>);
+              })()}
             </>);
           })()}
 
@@ -1129,7 +1170,7 @@ export default function App() {
                     type="text"
                     placeholder="🔍  Nome do cliente..."
                     value={filtroOrdemCliente}
-                    onChange={e => setFiltroOrdemCliente(e.target.value)}
+                    onChange={e => { setFiltroOrdemCliente(e.target.value); setOrdensPagina(0); }}
                   />
                 </div>
                 <div className="ordens-filtro-datas">
@@ -1139,7 +1180,7 @@ export default function App() {
                       className="form-input"
                       type="date"
                       value={filtroOrdemInicio}
-                      onChange={e => setFiltroOrdemInicio(e.target.value)}
+                      onChange={e => { setFiltroOrdemInicio(e.target.value); setOrdensPagina(0); }}
                     />
                   </div>
                   <div style={{ flex: "0 1 160px", minWidth: 130 }}>
@@ -1148,78 +1189,94 @@ export default function App() {
                       className="form-input"
                       type="date"
                       value={filtroOrdemFim}
-                      onChange={e => setFiltroOrdemFim(e.target.value)}
+                      onChange={e => { setFiltroOrdemFim(e.target.value); setOrdensPagina(0); }}
                     />
                   </div>
                   {temFiltro && (
-                    <button className="btn-sm" style={{ alignSelf: "flex-end", marginBottom: 1 }} onClick={() => { setFiltroOrdemCliente(""); setFiltroOrdemInicio(""); setFiltroOrdemFim(""); }}>
+                    <button className="btn-sm" style={{ alignSelf: "flex-end", marginBottom: 1 }} onClick={() => { setFiltroOrdemCliente(""); setFiltroOrdemInicio(""); setFiltroOrdemFim(""); setOrdensPagina(0); }}>
                       Limpar filtros
                     </button>
                   )}
                 </div>
               </div>
-              <div className="card table-desktop">
-                <div className="table-wrap">
-                  <table className="table">
-                    <thead><tr><th>OS #</th><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Serviços</th><th>Total</th><th>Status</th><th></th></tr></thead>
-                    <tbody>
-                      {ordensFiltradas.length === 0 && (
-                        <tr><td colSpan={8} className="empty">Nenhuma ordem encontrada.</td></tr>
-                      )}
-                      {ordensFiltradas.map(o => {
+              {(() => {
+                const pagSize = 10;
+                const totalPags = Math.ceil(ordensFiltradas.length / pagSize);
+                const paginadas = ordensFiltradas.slice(ordensPagina * pagSize, (ordensPagina + 1) * pagSize);
+                return (<>
+                  <div className="paginacao-pad">
+                    <div className="card table-desktop">
+                      <div className="table-wrap">
+                        <table className="table">
+                          <thead><tr><th>OS #</th><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Serviços</th><th>Total</th><th>Status</th><th></th></tr></thead>
+                          <tbody>
+                            {paginadas.length === 0 && (
+                              <tr><td colSpan={8} className="empty">Nenhuma ordem encontrada.</td></tr>
+                            )}
+                            {paginadas.map(o => {
+                              const cli = clientes.find(c => c.id === o.clienteId);
+                              const func = usuarios.find(u => u.id === o.funcionarioId);
+                              return (
+                                <tr key={o.id} style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
+                                  <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#5b3fa6" }}>#{o.numero}</td>
+                                  <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
+                                  <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
+                                  <td>{func?.nome}</td>
+                                  <td style={{ color: "#6b7280", fontSize: 13 }}>{o.servicos.map(s => s.nome).join(", ")}</td>
+                                  <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
+                                  <td><Badge status={o.status} /></td>
+                                  <td style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }} onClick={e => e.stopPropagation()}>
+                                    {o.status !== "cancelada" ? <>
+                                      <button className="btn-sm" disabled style={{ background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e", opacity: 1, cursor: "default" }}>Agendado</button>
+                                      <button className="btn-sm" style={["realizada", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "realizada")}>Realizado</button>
+                                      <button className="btn-sm" style={["agendamento_pago", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "paga")}>Pago</button>
+                                    </> : null}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div className="mobile-list">
+                      {paginadas.length === 0 && <p className="empty">Nenhuma ordem encontrada.</p>}
+                      {paginadas.map(o => {
                         const cli = clientes.find(c => c.id === o.clienteId);
                         const func = usuarios.find(u => u.id === o.funcionarioId);
                         return (
-                          <tr key={o.id} style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
-                            <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#5b3fa6" }}>#{o.numero}</td>
-                            <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
-                            <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
-                            <td>{func?.nome}</td>
-                            <td style={{ color: "#6b7280", fontSize: 13 }}>{o.servicos.map(s => s.nome).join(", ")}</td>
-                            <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
-                            <td><Badge status={o.status} /></td>
-                            <td style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }} onClick={e => e.stopPropagation()}>
+                          <div key={o.id} className="m-card" style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
+                            <div className="m-card-row">
+                              <div>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", letterSpacing: ".5px" }}>OS #{o.numero}</span>
+                                <div className="m-card-title" style={{ marginTop: 2 }}>{cli?.nome} {cli?.sobrenome}</div>
+                              </div>
+                              <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
+                            </div>
+                            <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
+                            <div className="m-card-sub" style={{ fontSize: 12, color: "#9ca3af" }}>{o.servicos.map(s => s.nome).join(", ")}</div>
+                            <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
+                            <div className="m-card-actions" onClick={e => e.stopPropagation()}>
                               {o.status !== "cancelada" ? <>
                                 <button className="btn-sm" disabled style={{ background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e", opacity: 1, cursor: "default" }}>Agendado</button>
                                 <button className="btn-sm" style={["realizada", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "realizada")}>Realizado</button>
                                 <button className="btn-sm" style={["agendamento_pago", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "paga")}>Pago</button>
                               </> : null}
-                            </td>
-                          </tr>
+                            </div>
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="mobile-list">
-                {ordensFiltradas.length === 0 && <p className="empty">Nenhuma ordem encontrada.</p>}
-                {ordensFiltradas.map(o => {
-                  const cli = clientes.find(c => c.id === o.clienteId);
-                  const func = usuarios.find(u => u.id === o.funcionarioId);
-                  return (
-                    <div key={o.id} className="m-card" style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
-                      <div className="m-card-row">
-                        <div>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", letterSpacing: ".5px" }}>OS #{o.numero}</span>
-                          <div className="m-card-title" style={{ marginTop: 2 }}>{cli?.nome} {cli?.sobrenome}</div>
-                        </div>
-                        <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
-                      </div>
-                      <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
-                      <div className="m-card-sub" style={{ fontSize: 12, color: "#9ca3af" }}>{o.servicos.map(s => s.nome).join(", ")}</div>
-                      <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
-                      <div className="m-card-actions" onClick={e => e.stopPropagation()}>
-                        {o.status !== "cancelada" ? <>
-                          <button className="btn-sm" disabled style={{ background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e", opacity: 1, cursor: "default" }}>Agendado</button>
-                          <button className="btn-sm" style={["realizada", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "realizada")}>Realizado</button>
-                          <button className="btn-sm" style={["agendamento_pago", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "paga")}>Pago</button>
-                        </> : null}
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                  {totalPags > 1 && (
+                    <div className="paginacao">
+                      <button className="pag-btn" disabled={ordensPagina === 0} onClick={() => setOrdensPagina(p => p - 1)}>← Anterior</button>
+                      <span className="pag-info">Página {ordensPagina + 1} de {totalPags}</span>
+                      <button className="pag-btn" disabled={ordensPagina >= totalPags - 1} onClick={() => setOrdensPagina(p => p + 1)}>Próxima →</button>
+                    </div>
+                  )}
+                </>);
+              })()}
             </>);
           })()}
 
