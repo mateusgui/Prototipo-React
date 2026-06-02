@@ -3,9 +3,9 @@ import React, { useState, useMemo, useEffect } from "react";
 const FORMAS_PAGAMENTO = ["PIX", "DÉBITO", "CRÉDITO À VISTA", "CRÉDITO 1x", "CRÉDITO 2x", "CRÉDITO 3x", "CRÉDITO 4x", "CRÉDITO 5x", "CRÉDITO 6x"];
 
 const USERS_INICIAL = [
-  { id: 1, email: "admin@lavanderia.com", senha: "123456", nome: "Admin", perfil: "admin", ativo: true },
-  { id: 2, email: "joao@lavanderia.com", senha: "123456", nome: "João Silva", perfil: "funcionario", ativo: true },
-  { id: 3, email: "maria@lavanderia.com", senha: "123456", nome: "Maria Souza", perfil: "funcionario", ativo: true },
+  { id: 1, email: "admin@lavanderia.com", senha: "admin123", nome: "Admin", perfil: "admin", ativo: true },
+  { id: 2, email: "joao@lavanderia.com", senha: "func123", nome: "João Silva", perfil: "funcionario", ativo: true },
+  { id: 3, email: "maria@lavanderia.com", senha: "func123", nome: "Maria Souza", perfil: "funcionario", ativo: true },
 ];
 
 const STATUS_CONFIG = {
