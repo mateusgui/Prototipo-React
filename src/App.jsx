@@ -1,14 +1,17 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 
-const USERS = [
-  { id: 1, email: "admin@lavanderia.com", senha: "123456", nome: "Admin", perfil: "admin" },
-  { id: 2, email: "joao@lavanderia.com", senha: "123456", nome: "João Silva", perfil: "funcionario" },
-  { id: 3, email: "maria@lavanderia.com", senha: "123456", nome: "Maria Souza", perfil: "funcionario" },
+const FORMAS_PAGAMENTO = ["PIX", "DÉBITO", "CRÉDITO À VISTA", "CRÉDITO 1x", "CRÉDITO 2x", "CRÉDITO 3x", "CRÉDITO 4x", "CRÉDITO 5x", "CRÉDITO 6x"];
+
+const USERS_INICIAL = [
+  { id: 1, email: "admin@lavanderia.com", senha: "123456", nome: "Admin", perfil: "admin", ativo: true },
+  { id: 2, email: "joao@lavanderia.com", senha: "123456", nome: "João Silva", perfil: "funcionario", ativo: true },
+  { id: 3, email: "maria@lavanderia.com", senha: "123456", nome: "Maria Souza", perfil: "funcionario", ativo: true },
 ];
 
 const STATUS_CONFIG = {
   agendada: { label: "Agendada", color: "#1a6fbb", bg: "#e8f3fc" },
   realizada: { label: "Serviço Realizado", color: "#1f7a3e", bg: "#e6f4ec" },
+  agendamento_pago: { label: "Agendamento Pago", color: "#b85e1a", bg: "#fdf0e6" },
   paga: { label: "Pagamento Recebido", color: "#5b3fa6", bg: "#eeebfb" },
   cancelada: { label: "Cancelada", color: "#b83232", bg: "#fdeaea" },
 };
@@ -65,6 +68,12 @@ function fmtMes(ym) {
   const [y, m] = ym.split("-");
   return `${MESES_ABREV[parseInt(m, 10) - 1]}/${y}`;
 }
+const MESES_EXTENSO = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+function fmtDataPorExtenso(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${parseInt(d)} de ${MESES_EXTENSO[parseInt(m, 10) - 1]} de ${y}`;
+}
 // Máscara de telefone: celular (00) 00000-0000 ou fixo (00) 0000-0000
 function fmtTelefone(v) {
   v = v.replace(/\D/g, "").slice(0, 11);
@@ -89,8 +98,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .nav-btn.active{background:#eeebfb;color:#5b3fa6;font-weight:500}
 .topbar-right{display:flex;align-items:center;gap:10px}
 .user-chip{font-size:13px;color:#6b7280;background:#f4f6f9;padding:4px 10px;border-radius:99px;border:1px solid #e2e5ea}
-.btn-logout{background:none;border:1px solid #e2e5ea;cursor:pointer;padding:5px 12px;border-radius:6px;font-size:13px;color:#6b7280}
-.btn-logout:hover{border-color:#c0c8d4;color:#1a1d23}
+.btn-opcoes{background:none;border:1px solid #e2e5ea;cursor:pointer;padding:5px 10px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#6b7280}
+.btn-opcoes:hover{border-color:#c0c8d4;color:#1a1d23}
+.opcoes-item{display:flex;align-items:center;gap:14px;width:100%;padding:14px 0;background:none;border:none;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:15px;color:#1a1d23;text-align:left}
+.opcoes-item:last-child{border-bottom:none}
+.opcoes-item:hover{color:#5b3fa6}
+.opcoes-item-danger,.opcoes-item-danger:hover{color:#b83232}
 
 /* ── BOTTOM NAV (mobile) ── */
 .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e5ea;z-index:50;padding:0 4px;padding-bottom:env(safe-area-inset-bottom)}
@@ -133,8 +146,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .m-card-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;border-top:1px solid #f0f2f5;padding-top:10px}
 
 /* ── STAT GRID ── */
-.stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 .stat-card{background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:20px 22px}
+.stat-card.clickable{cursor:pointer;transition:transform .12s,box-shadow .12s}
+.stat-card.clickable:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(0,0,0,.09)}
 .stat-label{font-size:12px;font-weight:500;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .stat-sublabel{font-size:11px;color:#9ca3af;margin-bottom:6px}
 .stat-value{font-size:26px;font-weight:700;color:#1a1d23}
@@ -144,10 +159,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .stat-card.orange .stat-value{color:#b85e1a}
 
 /* ── AGENDA ── */
-.agenda-card{background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:16px 20px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all .15s;gap:12px}
+.agenda-card{background:#fff;border:1px solid #e2e5ea;border-radius:12px;padding:16px 20px;margin-bottom:10px;display:flex;flex-direction:column;cursor:pointer;transition:all .15s}
+.agenda-card-top{display:flex;justify-content:space-between;align-items:stretch;gap:12px}
 .agenda-card:hover{border-color:#c0c8d4;box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .agenda-card-name{font-size:15px;font-weight:600;color:#1a1d23;margin-bottom:3px}
 .agenda-card-sub{font-size:13px;color:#6b7280}
+
+/* ── CLIENTE AUTOCOMPLETE ── */
+.cliente-ac-wrap{position:relative}
+.cliente-ac-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:240px;overflow-y:auto}
+.cliente-ac-header{font-size:11px;color:#9ca3af;padding:8px 14px 4px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.cliente-ac-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid #f0f2f5;transition:background .1s}
+.cliente-ac-item:last-child{border-bottom:none}
+.cliente-ac-item:hover{background:#f5f0ff}
+
+/* ── RELATÓRIOS ── */
+.rel-filter-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+/* ── ORDENS FILTROS ── */
+.ordens-filtros{display:flex;gap:10px;margin-bottom:16px;align-items:flex-end}
+.ordens-filtro-nome{flex:1 1 200px}
+.ordens-filtro-datas{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+
+/* ── AGENDA FILTROS ── */
+.agenda-filter-bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;margin-bottom:16px}
+.agenda-filter-right{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+
+/* ── AGENDA PAGINAÇÃO ── */
+.agenda-day-sep{background:#e8eaed;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;color:#4b5563;letter-spacing:.4px;margin:16px 0 8px;border:1px solid #d1d5db}
+.agenda-list{position:relative}
+.agenda-paginacao{display:flex;justify-content:center;align-items:center;gap:12px;padding:14px 0 4px}
+.pag-btn{padding:7px 18px;border-radius:8px;border:1px solid #e2e5ea;background:#fff;font-size:13px;cursor:pointer;color:#374151;font-weight:500;transition:all .15s}
+.pag-btn:hover:not(:disabled){border-color:#a78bda;color:#5b3fa6;background:#f5f0ff}
+.pag-btn:disabled{opacity:.4;cursor:default}
+.pag-info{font-size:13px;color:#6b7280;min-width:90px;text-align:center}
 
 /* ── FORMS / MODALS ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(15,20,30,.45);z-index:200;display:flex;align-items:flex-end;justify-content:center;padding:0}
@@ -169,7 +214,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .form-input.error,.form-select.error{border-color:#e55a5a}
 .form-error{font-size:12px;color:#b83232;margin-top:2px}
 .section-sep{font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid #f0f2f5}
-.service-row{display:grid;grid-template-columns:1fr 68px 96px 32px;gap:8px;align-items:start;margin-bottom:8px}
+.service-row{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;padding:14px;background:#f9fafb;border:2px solid #c7d0db;border-radius:10px}
+.service-row-bottom{display:grid;grid-template-columns:88px 1fr 32px;gap:8px;align-items:end}
+.svc-field-label{font-weight:700;font-size:12px;color:#374151;display:block;margin-bottom:3px}
+.pagamento-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.pagamento-btn{padding:6px 14px;border-radius:99px;border:1.5px solid #d1d5db;background:#fff;font-size:13px;cursor:pointer;transition:all .15s;color:#374151}
+.pagamento-btn.selected{border-color:#5b3fa6;background:#eeebfb;color:#5b3fa6;font-weight:600}
+.pagamento-btn:hover:not(.selected){border-color:#a78bda;background:#f5f0ff}
 .btn-add-svc{background:none;border:1px dashed #d1d5db;color:#6b7280;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;transition:all .15s;width:100%;margin-top:4px}
 .btn-add-svc:hover{border-color:#a78bda;color:#5b3fa6;background:#f5f0ff}
 .btn-rem{background:none;border:none;cursor:pointer;color:#b83232;font-size:20px;padding:8px 4px;border-radius:6px;line-height:1}
@@ -204,17 +255,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   .page{padding:16px 12px}
   .page-title{font-size:17px}
   .stat-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .stat-grid .stat-card:last-child{grid-column:1/-1}
   .stat-card{padding:14px 16px}
   .stat-value{font-size:20px}
   .table-desktop{display:none}
   .mobile-list{display:block}
   .form-row.cols2{grid-template-columns:1fr}
+  .form-row.cols2-force{grid-template-columns:1fr 1fr}
   .form-row.cols3{grid-template-columns:1fr 1fr}
   .rel-two-col{grid-template-columns:1fr!important}
-  .rel-filter-grid{grid-template-columns:1fr 1fr!important}
+  .rel-filter-grid{grid-template-columns:1fr 1fr}
   .modal{border-radius:18px 18px 0 0;max-height:95vh}
-  .service-row{grid-template-columns:1fr 56px 80px 28px}
+  .ordens-filtros{flex-direction:column;align-items:stretch}
+  .ordens-filtro-nome{flex:none}
+  .ordens-filtro-datas{flex-wrap:nowrap}
+  .agenda-filter-bar{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+  .agenda-filter-right{justify-content:center;order:-1}
+  .agenda-filter-spacer{display:none}
+  .agenda-paginacao{position:fixed;bottom:calc(60px + env(safe-area-inset-bottom));left:0;right:0;background:#fff;border-top:1px solid #e2e5ea;z-index:40;padding:10px 20px;justify-content:space-between}
+  .agenda-list{padding-bottom:60px}
 }
 @media(min-width:701px){
   .modal-overlay{align-items:center;padding:20px}
@@ -278,6 +336,54 @@ function FSelect({ label, required, error, children, ...props }) {
   );
 }
 
+function ClienteAutoComplete({ clienteId, onSelect, clientes, error }) {
+  const [inputVal, setInputVal] = useState("");
+  const [busca, setBusca] = useState("");
+  const [aberto, setAberto] = useState(false);
+
+  useEffect(() => {
+    if (!clienteId) { setInputVal(""); return; }
+    const cli = clientes.find(c => String(c.id) === String(clienteId));
+    setInputVal(cli ? `${cli.nome} ${cli.sobrenome}` : "");
+  }, [clienteId]);
+
+  const ativos = clientes.filter(c => c.ativo);
+  const ultimos5 = [...ativos].sort((a, b) => b.id - a.id).slice(0, 5);
+  const sugestoes = busca.trim()
+    ? ativos.filter(c => `${c.nome} ${c.sobrenome}`.toLowerCase().includes(busca.toLowerCase())).slice(0, 10)
+    : ultimos5;
+
+  return (
+    <FormGroup label="Cliente" required error={error}>
+      <div className="cliente-ac-wrap">
+        <input
+          className={`form-input${error ? " error" : ""}`}
+          placeholder="🔍  Buscar cliente..."
+          autoComplete="off"
+          value={inputVal}
+          onChange={e => { setInputVal(e.target.value); setBusca(e.target.value); onSelect(""); setAberto(true); }}
+          onFocus={() => setAberto(true)}
+          onBlur={() => setTimeout(() => setAberto(false), 150)}
+        />
+        {aberto && (
+          <div className="cliente-ac-dropdown">
+            {!busca.trim() && <div className="cliente-ac-header">Últimos cadastrados</div>}
+            {sugestoes.length === 0
+              ? <div style={{ padding: "12px 14px", color: "#9ca3af", fontSize: 13 }}>Nenhum cliente encontrado.</div>
+              : sugestoes.map(c => (
+                <div key={c.id} className="cliente-ac-item" onMouseDown={() => { onSelect(String(c.id)); setInputVal(`${c.nome} ${c.sobrenome}`); setBusca(""); setAberto(false); }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#1a1d23" }}>{c.nome} {c.sobrenome}</div>
+                  <div style={{ fontSize: 12, color: "#9ca3af" }}>{c.cpf} · {c.telefone}</div>
+                </div>
+              ))
+            }
+          </div>
+        )}
+      </div>
+    </FormGroup>
+  );
+}
+
 function Modal({ title, onClose, footer, children }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -313,22 +419,43 @@ export default function App() {
   ]);
 
   const [ordens, setOrdens] = useState([
-    { id: 1, numero: 100, clienteId: 1, funcionarioId: 2, data: "2026-05-28", hora: "09:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "Sofá com mancha no canto esquerdo. Acesso pelo portão lateral." },
-    { id: 2, numero: 101, clienteId: 2, funcionarioId: 3, data: "2026-05-29", hora: "14:00", status: "realizada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Cliente pediu para ligar 30min antes de chegar." },
-    { id: 3, numero: 102, clienteId: 1, funcionarioId: 2, data: "2026-05-25", hora: "10:00", status: "paga", servicos: [{ nome: "Lavagem de Tapete", qtd: 3, valor: 180 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
-    { id: 4, numero: 103, clienteId: 2, funcionarioId: 3, data: "2026-04-15", hora: "11:00", status: "paga", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }, { nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Tapete persa delicado, usar produto neutro." },
-    { id: 5, numero: 104, clienteId: 1, funcionarioId: 2, data: "2026-03-10", hora: "14:00", status: "paga", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
-    { id: 6, numero: 105, clienteId: 3, funcionarioId: 2, data: "2026-05-27", hora: "10:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "Tapete de lã, usar produto específico." },
-    { id: 7, numero: 106, clienteId: 4, funcionarioId: 3, data: "2026-05-28", hora: "11:30", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }, { nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "Sofá retrátil com 4 módulos. Portão eletrônico, ligar ao chegar." },
-    { id: 8, numero: 107, clienteId: 5, funcionarioId: 2, data: "2026-05-30", hora: "09:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 1, valor: 180 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "" },
-    { id: 9, numero: 108, clienteId: 1, funcionarioId: 3, data: "2026-06-02", hora: "14:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Rua das Flores, 10 - Centro", obs: "Segunda impermeabilização do ano. Checar resultado da anterior." },
-    { id: 10, numero: 109, clienteId: 2, funcionarioId: 2, data: "2026-06-04", hora: "08:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 3, valor: 250 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Três sofás de 2 lugares. Preferência por horário matutino." },
-    { id: 11, numero: 110, clienteId: 4, funcionarioId: 3, data: "2026-06-05", hora: "15:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }, { nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "" },
+    { id: 1, numero: 100, clienteId: 1, funcionarioId: 2, dataEmissao: "2026-02-28", data: "2026-03-05", hora: "09:00", status: "paga", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "Sofá com mancha no canto esquerdo. Acesso pelo portão lateral." },
+    { id: 2, numero: 101, clienteId: 2, funcionarioId: 3, dataEmissao: "2026-03-14", data: "2026-03-20", hora: "14:00", status: "paga", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Cliente pediu para ligar 30min antes de chegar." },
+    { id: 3, numero: 102, clienteId: 1, funcionarioId: 2, dataEmissao: "2026-04-02", data: "2026-04-08", hora: "10:00", status: "paga", servicos: [{ nome: "Lavagem de Tapete", qtd: 3, valor: 180 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 4, numero: 103, clienteId: 2, funcionarioId: 3, dataEmissao: "2026-04-16", data: "2026-04-22", hora: "11:00", status: "paga", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }, { nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Tapete persa delicado, usar produto neutro." },
+    { id: 5, numero: 104, clienteId: 1, funcionarioId: 2, dataEmissao: "2026-05-01", data: "2026-05-07", hora: "14:00", status: "paga", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 6, numero: 105, clienteId: 3, funcionarioId: 2, dataEmissao: "2026-05-14", data: "2026-05-20", hora: "10:00", status: "paga", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "Tapete de lã, usar produto específico." },
+    { id: 7, numero: 106, clienteId: 4, funcionarioId: 3, dataEmissao: "2026-05-22", data: "2026-05-28", hora: "11:30", status: "realizada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }, { nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "Sofá retrátil com 4 módulos. Portão eletrônico, ligar ao chegar." },
+    { id: 8, numero: 107, clienteId: 5, funcionarioId: 2, dataEmissao: "2026-05-26", data: "2026-06-03", hora: "09:00", status: "agendamento_pago", servicos: [{ nome: "Lavagem de Tapete", qtd: 1, valor: 180 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "Cliente pagou antecipado via PIX." },
+    { id: 9, numero: 108, clienteId: 1, funcionarioId: 3, dataEmissao: "2026-05-29", data: "2026-06-06", hora: "14:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }], endereco: "Rua das Flores, 10 - Centro", obs: "Segunda impermeabilização do ano. Checar resultado da anterior." },
+    { id: 10, numero: 109, clienteId: 2, funcionarioId: 2, dataEmissao: "2026-06-01", data: "2026-06-10", hora: "08:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 3, valor: 250 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Três sofás de 2 lugares. Preferência por horário matutino." },
+    { id: 11, numero: 110, clienteId: 4, funcionarioId: 3, dataEmissao: "2026-06-01", data: "2026-06-13", hora: "15:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }, { nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "" },
+    { id: 12, numero: 111, clienteId: 2, funcionarioId: 3, dataEmissao: "2026-06-01", data: "2026-06-03", hora: "10:30", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim", obs: "" },
+    { id: 13, numero: 112, clienteId: 3, funcionarioId: 2, dataEmissao: "2026-06-01", data: "2026-06-03", hora: "14:00", status: "agendada", servicos: [{ nome: "Lavagem de Cortinas", qtd: 4, valor: 90 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "Cortinas do quarto e da sala." },
+    { id: 14, numero: 113, clienteId: 1, funcionarioId: 2, dataEmissao: "2026-06-01", data: "2026-06-04", hora: "08:30", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 15, numero: 114, clienteId: 4, funcionarioId: 3, dataEmissao: "2026-06-02", data: "2026-06-04", hora: "11:00", status: "agendamento_pago", servicos: [{ nome: "Lavagem de Tapete", qtd: 3, valor: 180 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "Pagamento recebido via transferência." },
+    { id: 16, numero: 115, clienteId: 5, funcionarioId: 2, dataEmissao: "2026-06-02", data: "2026-06-04", hora: "16:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }, { nome: "Lavagem de Tapete", qtd: 1, valor: 180 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "" },
+    { id: 17, numero: 116, clienteId: 2, funcionarioId: 3, dataEmissao: "2026-06-02", data: "2026-06-05", hora: "09:00", status: "agendada", servicos: [{ nome: "Lavagem de Cortinas", qtd: 6, valor: 90 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Cortinas de linho, cuidado com temperatura." },
+    { id: 18, numero: 117, clienteId: 3, funcionarioId: 2, dataEmissao: "2026-06-02", data: "2026-06-05", hora: "13:30", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "" },
+    { id: 19, numero: 118, clienteId: 4, funcionarioId: 2, dataEmissao: "2026-06-02", data: "2026-06-06", hora: "09:30", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "" },
+    { id: 20, numero: 119, clienteId: 5, funcionarioId: 3, dataEmissao: "2026-06-02", data: "2026-06-06", hora: "15:00", status: "agendamento_pago", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }, { nome: "Lavagem de Cortinas", qtd: 2, valor: 90 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "Pagamento via cartão débito." },
+    { id: 21, numero: 120, clienteId: 1, funcionarioId: 3, dataEmissao: "2026-06-02", data: "2026-06-07", hora: "08:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 22, numero: 121, clienteId: 2, funcionarioId: 2, dataEmissao: "2026-06-02", data: "2026-06-07", hora: "11:30", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 1, valor: 180 }, { nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim", obs: "Tapete persa, usar produto neutro." },
+    { id: 23, numero: 122, clienteId: 3, funcionarioId: 3, dataEmissao: "2026-06-03", data: "2026-06-09", hora: "10:00", status: "agendada", servicos: [{ nome: "Lavagem de Cortinas", qtd: 8, valor: 90 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "" },
+    { id: 24, numero: 123, clienteId: 4, funcionarioId: 2, dataEmissao: "2026-06-03", data: "2026-06-09", hora: "14:30", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "" },
+    { id: 25, numero: 124, clienteId: 5, funcionarioId: 3, dataEmissao: "2026-06-03", data: "2026-06-10", hora: "09:00", status: "agendamento_pago", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "Pagou adiantado no atendimento anterior." },
+    { id: 26, numero: 125, clienteId: 1, funcionarioId: 2, dataEmissao: "2026-06-03", data: "2026-06-10", hora: "13:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 3, valor: 300 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 27, numero: 126, clienteId: 2, funcionarioId: 3, dataEmissao: "2026-06-03", data: "2026-06-11", hora: "08:30", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }, { nome: "Lavagem de Cortinas", qtd: 3, valor: 90 }], endereco: "Av. Brasil, 200 - Jardim", obs: "" },
+    { id: 28, numero: 127, clienteId: 3, funcionarioId: 2, dataEmissao: "2026-06-03", data: "2026-06-11", hora: "10:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 1, valor: 180 }], endereco: "Rua Goiás, 45 - Vila Aurora", obs: "" },
+    { id: 29, numero: 128, clienteId: 4, funcionarioId: 3, dataEmissao: "2026-06-03", data: "2026-06-12", hora: "15:00", status: "agendada", servicos: [{ nome: "Impermeabilização", qtd: 2, valor: 300 }, { nome: "Limpeza/Higienização de Sofá", qtd: 1, valor: 250 }], endereco: "Rua Mato Grosso, 312 - Residencial", obs: "" },
+    { id: 30, numero: 129, clienteId: 5, funcionarioId: 2, dataEmissao: "2026-06-03", data: "2026-06-13", hora: "09:30", status: "agendada", servicos: [{ nome: "Lavagem de Cortinas", qtd: 5, valor: 90 }], endereco: "Av. Lions, 88 - Coophavila II", obs: "" },
+    { id: 31, numero: 130, clienteId: 1, funcionarioId: 3, dataEmissao: "2026-06-03", data: "2026-06-16", hora: "10:00", status: "agendada", servicos: [{ nome: "Lavagem de Tapete", qtd: 2, valor: 180 }], endereco: "Rua das Flores, 10 - Centro", obs: "" },
+    { id: 32, numero: 131, clienteId: 2, funcionarioId: 2, dataEmissao: "2026-06-03", data: "2026-06-16", hora: "14:00", status: "agendada", servicos: [{ nome: "Limpeza/Higienização de Sofá", qtd: 2, valor: 250 }, { nome: "Impermeabilização", qtd: 1, valor: 300 }], endereco: "Av. Brasil, 200 - Jardim", obs: "" },
   ]);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginSenha, setLoginSenha] = useState("");
-  const [proximoNumeroOS, setProximoNumeroOS] = useState(111);
+  const [proximoNumeroOS, setProximoNumeroOS] = useState(132);
   const [loginErro, setLoginErro] = useState("");
   const [modal, setModal] = useState(null);
   const [confirmData, setConfirmData] = useState(null);
@@ -336,33 +463,46 @@ export default function App() {
   const [erros, setErros] = useState({});
   const [filtroFunc, setFiltroFunc] = useState("");
   const [filtroData, setFiltroData] = useState("");
+  const [filtroStatusAgenda, setFiltroStatusAgenda] = useState("agendado");
+  const [agendaPagina, setAgendaPagina] = useState(0);
   const [relInicio, setRelInicio] = useState("2026-01");
   const [relFim, setRelFim] = useState("2026-05");
   const [relServico, setRelServico] = useState("");
   const [relFunc, setRelFunc] = useState("");
 
   const [fCliente, setFCliente] = useState({ nome: "", sobrenome: "", cpf: "", telefone: "", email: "", rua: "", numero: "", complemento: "", bairro: "", cidade: "", estado: "", cep: "" });
-  const [fOrdem, setFOrdem] = useState({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
+  const [fOrdem, setFOrdem] = useState({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", formaPagamento: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "", descricao: "" }] });
   const [ordemEditando, setOrdemEditando] = useState(null);
   const [ordemAvancando, setOrdemAvancando] = useState(null);
   const [clienteEditando, setClienteEditando] = useState(null);
+  const [detalheEditando, setDetalheEditando] = useState(false);
   const [filtroBuscaCliente, setFiltroBuscaCliente] = useState("");
   const [filtroOrdemCliente, setFiltroOrdemCliente] = useState("");
   const [filtroOrdemInicio, setFiltroOrdemInicio] = useState("");
   const [filtroOrdemFim, setFiltroOrdemFim] = useState("");
+  const [usuarios, setUsuarios] = useState(USERS_INICIAL);
+  const [proximoIdUsuario, setProximoIdUsuario] = useState(4);
+  const [usuarioDetalhe, setUsuarioDetalhe] = useState(null);
+  const [fUsuario, setFUsuario] = useState({ nome: "", email: "" });
+  const [fNovoUsuario, setFNovoUsuario] = useState({ nome: "", email: "", senha: "", perfil: "funcionario" });
+  const [fResetSenha, setFResetSenha] = useState({ nova: "" });
+  const [confirmarFormaPagamento, setConfirmarFormaPagamento] = useState("");
+  const [dashMes, setDashMes] = useState(new Date().toISOString().slice(0, 7));
+  const [dashFiltroStatus, setDashFiltroStatus] = useState("agendada");
+  const [historicoClienteId, setHistoricoClienteId] = useState(null);
 
-  const funcionarios = USERS.filter(u => u.perfil === "funcionario");
+  const funcionarios = usuarios.filter(u => u.perfil === "funcionario");
 
   function login() {
-    const u = USERS.find(u => u.email === loginEmail && u.senha === loginSenha);
+    const u = usuarios.find(u => u.email === loginEmail && u.senha === loginSenha && u.ativo !== false);
     if (u) { setUser(u); setAba(u.perfil === "admin" ? "dashboard" : "agenda"); }
     else setLoginErro("E-mail ou senha inválidos.");
   }
 
   function totalOrdem(o) { return o.servicos.reduce((s, sv) => s + sv.qtd * Number(sv.valor), 0); }
   function openModal(tipo) { setModal(tipo); setErros({}); }
-  function closeModal() { setModal(null); setErros({}); setEditServico(null); setOrdemEditando(null); setOrdemAvancando(null); setClienteEditando(null); }
-  function abrirConfirmarAvanco(id) { setOrdemAvancando(id); setModal("confirmarAvanco"); }
+  function closeModal() { setModal(null); setErros({}); setEditServico(null); setOrdemEditando(null); setOrdemAvancando(null); setClienteEditando(null); setDetalheEditando(false); setHistoricoClienteId(null); setUsuarioDetalhe(null); setFUsuario({ nome: "", email: "" }); setFNovoUsuario({ nome: "", email: "", senha: "", perfil: "funcionario" }); setFResetSenha({ nova: "" }); setConfirmarFormaPagamento(""); }
+  function abrirConfirmarStatus(id, targetStatus) { setOrdemAvancando({ id, targetStatus }); setModal("confirmarAvanco"); }
 
   function validarFCliente(excluirId = null) {
     const e = {};
@@ -388,6 +528,49 @@ export default function App() {
   }
 
   function reativarCliente(id) { setClientes(p => p.map(c => c.id === id ? { ...c, ativo: true } : c)); }
+
+  function inativarUsuario(id) { setUsuarios(p => p.map(u => u.id === id ? { ...u, ativo: false } : u)); }
+  function reativarUsuario(id) { setUsuarios(p => p.map(u => u.id === id ? { ...u, ativo: true } : u)); }
+
+  function salvarNovoUsuario() {
+    const e = {};
+    if (!fNovoUsuario.nome.trim()) e.uNome = "Nome obrigatório.";
+    if (!fNovoUsuario.email.trim()) e.uEmail = "E-mail obrigatório.";
+    else if (usuarios.some(u => u.email === fNovoUsuario.email.trim())) e.uEmail = "E-mail já cadastrado.";
+    if (!fNovoUsuario.senha.trim()) e.uSenha = "Senha obrigatória.";
+    else if (fNovoUsuario.senha.trim().length < 6) e.uSenha = "Mínimo de 6 caracteres.";
+    if (Object.keys(e).length) { setErros(e); return; }
+    setUsuarios(p => [...p, { id: proximoIdUsuario, nome: fNovoUsuario.nome.trim(), email: fNovoUsuario.email.trim(), senha: fNovoUsuario.senha.trim(), perfil: fNovoUsuario.perfil, ativo: true }]);
+    setProximoIdUsuario(p => p + 1);
+    closeModal();
+  }
+
+  function salvarEdicaoUsuario() {
+    const e = {};
+    if (!fUsuario.nome.trim()) e.uNome = "Nome obrigatório.";
+    if (!fUsuario.email.trim()) e.uEmail = "E-mail obrigatório.";
+    else if (usuarios.some(u => u.email === fUsuario.email.trim() && u.id !== usuarioDetalhe.id)) e.uEmail = "E-mail já cadastrado.";
+    if (Object.keys(e).length) { setErros(e); return; }
+    setUsuarios(p => p.map(u => u.id === usuarioDetalhe.id ? { ...u, nome: fUsuario.nome.trim(), email: fUsuario.email.trim() } : u));
+    setModal("detalheUsuario");
+    setErros({});
+  }
+
+  function salvarResetSenhaPropria() {
+    if (!fResetSenha.nova.trim()) { setErros({ resetNova: "Nova senha obrigatória." }); return; }
+    if (fResetSenha.nova.trim().length < 6) { setErros({ resetNova: "Mínimo de 6 caracteres." }); return; }
+    setUsuarios(p => p.map(u => u.id === user.id ? { ...u, senha: fResetSenha.nova.trim() } : u));
+    closeModal();
+  }
+
+  function salvarResetarSenhaUsuario() {
+    if (!fResetSenha.nova.trim()) { setErros({ resetNova: "Nova senha obrigatória." }); return; }
+    if (fResetSenha.nova.trim().length < 6) { setErros({ resetNova: "Mínimo de 6 caracteres." }); return; }
+    setUsuarios(p => p.map(u => u.id === usuarioDetalhe.id ? { ...u, senha: fResetSenha.nova.trim() } : u));
+    setModal("detalheUsuario");
+    setErros({});
+    setFResetSenha({ nova: "" });
+  }
 
   function abrirEdicaoCliente(c) {
     setClienteEditando(c.id);
@@ -419,13 +602,15 @@ export default function App() {
     const novoNumero = proximoNumeroOS;
     setOrdens(p => [...p, {
       id: Date.now(), numero: novoNumero, clienteId: parseInt(fOrdem.clienteId), funcionarioId: parseInt(fOrdem.funcionarioId),
+      dataEmissao: new Date().toISOString().slice(0, 10),
       data: fOrdem.data, hora: fOrdem.hora, status: "agendada",
-      servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor) })),
+      servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor), descricao: s.descricao || "" })),
       endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`,
-      obs: fOrdem.obs || ""
+      obs: fOrdem.obs || "",
+      formaPagamento: fOrdem.formaPagamento || ""
     }]);
     setProximoNumeroOS(n => n + 1);
-    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
+    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", formaPagamento: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "", descricao: "" }] });
     closeModal();
   }
 
@@ -437,9 +622,10 @@ export default function App() {
       data: o.data,
       hora: o.hora,
       obs: o.obs || "",
+      formaPagamento: o.formaPagamento || "",
       servicos: o.servicos.map(s => {
         const pred = servicosAtivos.find(sv => sv.nome === s.nome);
-        return { servicoId: pred ? String(pred.id) : "__livre", nome: s.nome, qtd: s.qtd, valor: String(s.valor) };
+        return { servicoId: pred ? String(pred.id) : "", nome: s.nome, qtd: s.qtd, valor: String(s.valor), descricao: s.descricao || "" };
       })
     });
     setErros({});
@@ -464,19 +650,70 @@ export default function App() {
       funcionarioId: parseInt(fOrdem.funcionarioId),
       data: fOrdem.data,
       hora: fOrdem.hora,
-      servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor) })),
+      servicos: svs.map(s => ({ nome: s.nome, qtd: parseInt(s.qtd) || 1, valor: parseFloat(s.valor), descricao: s.descricao || "" })),
       endereco: `${cli.rua}, ${cli.numero} - ${cli.bairro}`,
-      obs: fOrdem.obs || ""
+      obs: fOrdem.obs || "",
+      formaPagamento: fOrdem.formaPagamento || ""
     } : o));
-    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "" }] });
-    closeModal();
+    setFOrdem({ clienteId: "", funcionarioId: "", data: "", hora: "", obs: "", formaPagamento: "", servicos: [{ servicoId: "", nome: "", qtd: 1, valor: "", descricao: "" }] });
+    if (detalheEditando) {
+      setDetalheEditando(false);
+      setOrdemEditando(null);
+      setErros({});
+    } else {
+      closeModal();
+    }
+  }
+
+  function entrarModoEdicaoDetalhe(o) {
+    setOrdemEditando(o.id);
+    setFOrdem({
+      clienteId: String(o.clienteId),
+      funcionarioId: String(o.funcionarioId),
+      data: o.data,
+      hora: o.hora,
+      obs: o.obs || "",
+      formaPagamento: o.formaPagamento || "",
+      servicos: o.servicos.map(s => {
+        const pred = servicosAtivos.find(sv => sv.nome === s.nome);
+        return { servicoId: pred ? String(pred.id) : "", nome: s.nome, qtd: s.qtd, valor: String(s.valor), descricao: s.descricao || "" };
+      })
+    });
+    setErros({});
+    setDetalheEditando(true);
+  }
+
+  function cancelarEdicaoDetalhe() {
+    setDetalheEditando(false);
+    setOrdemEditando(null);
+    setErros({});
   }
 
 
 
-  function avancarStatus(id) {
-    const map = { agendada: "realizada", realizada: "paga" };
-    setOrdens(p => p.map(o => o.id === id && map[o.status] ? { ...o, status: map[o.status] } : o));
+  function mudarStatus(id, newStatus, formaPagamento = null) {
+    setOrdens(p => p.map(o => {
+      if (o.id !== id) return o;
+      const updated = { ...o, status: newStatus };
+      if (formaPagamento) updated.formaPagamento = formaPagamento;
+      return updated;
+    }));
+  }
+
+  function calcularNovoStatus(currentStatus, botao) {
+    if (botao === "realizada") {
+      if (currentStatus === "agendada") return "realizada";
+      if (currentStatus === "realizada") return "agendada";
+      if (currentStatus === "agendamento_pago") return "paga";
+      if (currentStatus === "paga") return "agendamento_pago";
+    }
+    if (botao === "paga") {
+      if (currentStatus === "agendada") return "agendamento_pago";
+      if (currentStatus === "agendamento_pago") return "agendada";
+      if (currentStatus === "realizada") return "paga";
+      if (currentStatus === "paga") return "realizada";
+    }
+    return currentStatus;
   }
 
   function reativarOrdem(id) {
@@ -494,7 +731,21 @@ export default function App() {
 
   function ordensFiltradas() {
     return ordens.filter(o => {
-      if (o.status !== "agendada") return false;
+      // Filtro pelo botão de status da agenda
+      let statusPermitidos;
+      if (filtroStatusAgenda === "agendado") {
+        statusPermitidos = ["agendada", "agendamento_pago"];
+      } else if (filtroStatusAgenda === "realizado") {
+        statusPermitidos = ["realizada"];
+      } else if (filtroStatusAgenda === "pago") {
+        statusPermitidos = ["paga", "agendamento_pago"];
+      } else {
+        // Sem filtro ativo: padrão por perfil
+        statusPermitidos = user?.perfil === "funcionario"
+          ? ["agendada", "agendamento_pago", "realizada", "paga"]
+          : ["agendada", "agendamento_pago"];
+      }
+      if (!statusPermitidos.includes(o.status)) return false;
       if (user?.perfil === "funcionario" && o.funcionarioId !== user.id) return false;
       if (filtroFunc && o.funcionarioId !== parseInt(filtroFunc)) return false;
       if (filtroData && o.data !== filtroData) return false;
@@ -538,28 +789,31 @@ export default function App() {
   }, [ordensRelatorio, relServico]);
 
   const totalFaturado = ordens.filter(o => o.status === "paga").reduce((s, o) => s + totalOrdem(o), 0);
-  const pendentes = ordens.filter(o => ["agendada", "realizada"].includes(o.status)).length;
+  const pendentes = ordens.filter(o => ["agendada", "agendamento_pago", "realizada"].includes(o.status)).length;
   const servicosAtivos = servicos;
 
-  // KPIs filtrados pelo mês atual
-  const mesAtual = new Date().toISOString().slice(0, 7); // "2026-05"
-  const ordensMes = ordens.filter(o => o.data.slice(0, 7) === mesAtual);
-  const kpiMes = {
-    agendadas: ordensMes.filter(o => o.status === "agendada").length,
-    realizadas: ordensMes.filter(o => o.status === "realizada").length,
-    pagas: ordensMes.filter(o => o.status === "paga").length,
-    canceladas: ordensMes.filter(o => o.status === "cancelada").length,
-    faturamento: ordensMes.filter(o => o.status === "paga").reduce((s, o) => s + totalOrdem(o), 0),
+  // Dashboard KPIs por competência selecionada
+  const ordensDashMes = ordens.filter(o => o.data.slice(0, 7) === dashMes);
+  const kpiDash = {
+    agendadas: ordensDashMes.filter(o => o.status === "agendada").length,
+    pendenteExecucao: ordensDashMes.filter(o => o.status === "agendamento_pago").length,
+    pendentePagamento: ordensDashMes.filter(o => o.status === "realizada").length,
+    faturamento: ordensDashMes.filter(o => ["paga", "agendamento_pago"].includes(o.status)).reduce((s, o) => s + totalOrdem(o), 0),
   };
 
   const ordensDashboard = (() => {
-    const agendadas = ordens
-      .filter(o => o.status === "agendada")
+    if (dashFiltroStatus) {
+      return ordensDashMes
+        .filter(o => o.status === dashFiltroStatus)
+        .sort((a, b) => b.numero - a.numero);
+    }
+    const pendentes = ordensDashMes
+      .filter(o => ["agendada", "agendamento_pago"].includes(o.status))
       .sort((a, b) => a.data.localeCompare(b.data) || a.hora.localeCompare(b.hora));
-    const outras = ordens
-      .filter(o => o.status !== "agendada")
-      .sort((a, b) => b.data.localeCompare(a.data));
-    return [...agendadas, ...outras].slice(0, 6);
+    const outros = ordensDashMes
+      .filter(o => !["agendada", "agendamento_pago"].includes(o.status))
+      .sort((a, b) => b.numero - a.numero);
+    return [...pendentes, ...outros].slice(0, 6);
   })();
 
   function setOrdemSvcField(i, field, val) {
@@ -613,7 +867,11 @@ export default function App() {
           </div>
           <div className="topbar-right">
             <span className="user-chip">{user.nome}</span>
-            <button className="btn-logout" onClick={() => setModal("confirmLogout")}>Sair</button>
+            <button className="btn-opcoes" title="Opções" onClick={() => setModal("opcoes")}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -627,11 +885,11 @@ export default function App() {
                 {aba === id && <div className="bnav-dot" />}
               </button>
             ))}
-            <button className="bnav-btn" onClick={() => setModal("confirmLogout")}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            <button className="bnav-btn" onClick={() => setModal("opcoes")}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
               </svg>
-              <span>Sair</span>
+              <span>Opções</span>
             </button>
           </div>
         </div>
@@ -642,46 +900,74 @@ export default function App() {
           {aba === "dashboard" && (<>
             <div className="page-header">
               <h1 className="page-title">Visão geral</h1>
-              <span style={{ fontSize: 13, color: "#6b7280" }}>{fmtMes(mesAtual)}</span>
+              <input
+                type="month"
+                className="form-input"
+                style={{ width: "auto", fontSize: 13, padding: "4px 10px" }}
+                value={dashMes}
+                onChange={e => { setDashMes(e.target.value); setDashFiltroStatus(null); }}
+              />
             </div>
             <div className="stat-grid">
-              <div className="stat-card blue">
+              <div
+                className="stat-card blue clickable"
+                style={dashFiltroStatus === "agendada" ? { outline: "2px solid #1a6fbb", outlineOffset: "0" } : {}}
+                onClick={() => setDashFiltroStatus(p => p === "agendada" ? null : "agendada")}
+              >
                 <div className="stat-label">Agendadas</div>
-                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
-                <div className="stat-value">{kpiMes.agendadas}</div>
+                <div className="stat-sublabel">{fmtMes(dashMes)}</div>
+                <div className="stat-value">{kpiDash.agendadas}</div>
               </div>
-              <div className="stat-card purple">
-                <div className="stat-label">Serviços Realizados</div>
-                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
-                <div className="stat-value">{kpiMes.realizadas}</div>
+              <div
+                className="stat-card orange clickable"
+                style={dashFiltroStatus === "agendamento_pago" ? { outline: "2px solid #b85e1a", outlineOffset: "0" } : {}}
+                onClick={() => setDashFiltroStatus(p => p === "agendamento_pago" ? null : "agendamento_pago")}
+              >
+                <div className="stat-label">Pendente de Execução</div>
+                <div className="stat-sublabel">Agendamento Pago</div>
+                <div className="stat-value">{kpiDash.pendenteExecucao}</div>
+              </div>
+              <div
+                className="stat-card purple clickable"
+                style={dashFiltroStatus === "realizada" ? { outline: "2px solid #5b3fa6", outlineOffset: "0" } : {}}
+                onClick={() => setDashFiltroStatus(p => p === "realizada" ? null : "realizada")}
+              >
+                <div className="stat-label">Pendente de Pagamento</div>
+                <div className="stat-sublabel">Executado, não pago</div>
+                <div className="stat-value">{kpiDash.pendentePagamento}</div>
               </div>
               <div className="stat-card green">
-                <div className="stat-label">Pagamentos Recebidos</div>
-                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
-                <div className="stat-value">{kpiMes.pagas}</div>
+                <div className="stat-label">Faturamento Total</div>
+                <div className="stat-sublabel">{fmtMes(dashMes)}</div>
+                <div className="stat-value" style={{ fontSize: 20 }}>R$ {kpiDash.faturamento.toFixed(2).replace(".", ",")}</div>
               </div>
-              <div className="stat-card orange">
-                <div className="stat-label">Canceladas</div>
-                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
-                <div className="stat-value">{kpiMes.canceladas}</div>
-              </div>
-              <div className="stat-card" style={{ borderLeft: "3px solid #1f7a3e" }}>
-                <div className="stat-label">Faturamento do Mês</div>
-                <div className="stat-sublabel">{fmtMes(mesAtual)}</div>
-                <div className="stat-value" style={{ color: "#1f7a3e", fontSize: 20 }}>R$ {kpiMes.faturamento.toFixed(2).replace(".", ",")}</div>
-              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: "#1a1d23" }}>
+                {dashFiltroStatus === "agendada" && `Agendadas — ${fmtMes(dashMes)}`}
+                {dashFiltroStatus === "agendamento_pago" && `Pendente de Execução — ${fmtMes(dashMes)}`}
+                {dashFiltroStatus === "realizada" && `Pendente de Pagamento — ${fmtMes(dashMes)}`}
+                {!dashFiltroStatus && `Recentes — ${fmtMes(dashMes)}`}
+              </span>
+              {dashFiltroStatus && (
+                <button className="btn-sm" onClick={() => setDashFiltroStatus(null)}>Limpar filtro</button>
+              )}
             </div>
             {/* desktop table */}
             <div className="card table-desktop">
               <div className="table-wrap">
                 <table className="table">
-                  <thead><tr><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Total</th><th>Status</th></tr></thead>
+                  <thead><tr><th>#OS</th><th>Cliente</th><th>Data / Hora</th><th>Funcionário</th><th>Total</th><th>Status</th></tr></thead>
                   <tbody>
+                    {ordensDashboard.length === 0 && (
+                      <tr><td colSpan={6} style={{ textAlign: "center", color: "#9ca3af", padding: "20px 0" }}>Nenhuma ordem encontrada.</td></tr>
+                    )}
                     {ordensDashboard.map(o => {
                       const cli = clientes.find(c => c.id === o.clienteId);
-                      const func = USERS.find(u => u.id === o.funcionarioId);
+                      const func = usuarios.find(u => u.id === o.funcionarioId);
                       return (
-                        <tr key={o.id}>
+                        <tr key={o.id} style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
+                          <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#5b3fa6" }}>#{o.numero}</td>
                           <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
                           <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
                           <td>{func?.nome}</td>
@@ -696,20 +982,51 @@ export default function App() {
             </div>
             {/* mobile cards */}
             <div className="mobile-list">
+              {ordensDashboard.length === 0 && <p className="empty">Nenhuma ordem encontrada.</p>}
               {ordensDashboard.map(o => {
                 const cli = clientes.find(c => c.id === o.clienteId);
-                const func = USERS.find(u => u.id === o.funcionarioId);
+                const func = usuarios.find(u => u.id === o.funcionarioId);
                 return (
-                  <div key={o.id} className="m-card">
+                  <div key={o.id} className="m-card" style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
                     <div className="m-card-row">
-                      <div className="m-card-title">{cli?.nome} {cli?.sobrenome}</div>
+                      <div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", letterSpacing: ".5px" }}>OS #{o.numero}</span>
+                        <div className="m-card-title" style={{ marginTop: 2 }}>{cli?.nome} {cli?.sobrenome}</div>
+                      </div>
                       <strong>R$ {totalOrdem(o).toFixed(2)}</strong>
                     </div>
                     <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
-                    <Badge status={o.status} />
+                    <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
                   </div>
                 );
               })}
+            </div>
+          </>)}
+
+          {/* FUNCIONÁRIOS */}
+          {aba === "funcionarios" && (<>
+            <div className="page-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button className="btn-sm" onClick={() => setAba("dashboard")}>← Voltar</button>
+                <h1 className="page-title">Usuários do sistema</h1>
+              </div>
+              <button className="btn-primary" onClick={() => openModal("novoUsuario")}>+ Novo usuário</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {usuarios.map(u => (
+                <div key={u.id} className="m-card" style={{ cursor: "pointer", opacity: u.ativo ? 1 : .55 }} onClick={() => { setUsuarioDetalhe(u); openModal("detalheUsuario"); }}>
+                  <div className="m-card-row">
+                    <div className="m-card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {u.nome}
+                      {!u.ativo && <span className="badge" style={{ background: "#fdeaea", color: "#b83232", fontSize: 11 }}>Inativo</span>}
+                    </div>
+                    <span className="badge" style={{ background: u.perfil === "admin" ? "#eeebfb" : "#e8f3fc", color: u.perfil === "admin" ? "#5b3fa6" : "#1a6fbb" }}>
+                      {u.perfil === "admin" ? "Admin" : "Funcionário"}
+                    </span>
+                  </div>
+                  <div className="m-card-sub">{u.email}</div>
+                </div>
+              ))}
             </div>
           </>)}
 
@@ -749,13 +1066,13 @@ export default function App() {
                         <tr><td colSpan={6} className="empty">Nenhum cliente encontrado.</td></tr>
                       )}
                       {clientesFiltrados.map(c => (
-                        <tr key={c.id} style={{ opacity: c.ativo ? 1 : .5 }}>
+                        <tr key={c.id} style={{ opacity: c.ativo ? 1 : .5, cursor: "pointer" }} onClick={() => { setHistoricoClienteId(c.id); openModal("historicoCliente"); }}>
                           <td><strong>{c.nome} {c.sobrenome}</strong></td>
                           <td style={{ color: "#6b7280", fontFamily: "monospace" }}>{c.cpf}</td>
                           <td>{c.telefone}</td>
                           <td>{c.cidade} / {c.estado}</td>
                           <td><span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span></td>
-                          <td style={{ display: "flex", gap: 8 }}>
+                          <td style={{ display: "flex", gap: 8 }} onClick={e => e.stopPropagation()}>
                             {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
                             {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
                             {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
@@ -769,14 +1086,14 @@ export default function App() {
               <div className="mobile-list">
                 {clientesFiltrados.length === 0 && <p className="empty">Nenhum cliente encontrado.</p>}
                 {clientesFiltrados.map(c => (
-                  <div key={c.id} className="m-card" style={{ opacity: c.ativo ? 1 : .5 }}>
+                  <div key={c.id} className="m-card" style={{ opacity: c.ativo ? 1 : .5, cursor: "pointer" }} onClick={() => { setHistoricoClienteId(c.id); openModal("historicoCliente"); }}>
                     <div className="m-card-row">
                       <div className="m-card-title">{c.nome} {c.sobrenome}</div>
                       <span className="badge" style={{ background: c.ativo ? "#e6f4ec" : "#fdeaea", color: c.ativo ? "#1f7a3e" : "#b83232" }}>{c.ativo ? "Ativo" : "Inativo"}</span>
                     </div>
                     <div className="m-card-sub">{c.cpf}</div>
                     <div className="m-card-sub">{c.telefone} · {c.cidade}/{c.estado}</div>
-                    <div className="m-card-actions">
+                    <div className="m-card-actions" onClick={e => e.stopPropagation()}>
                       {c.ativo && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoCliente(c)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
                       {c.ativo && <button className="btn-sm btn-danger" onClick={() => confirmar("inativarCliente", c.id, "Ao inativar este cliente, todas suas ordens serão mantidas no histórico. Deseja continuar?")}>Inativar</button>}
                       {!c.ativo && <button className="btn-sm btn-advance" onClick={() => reativarCliente(c.id)}>Reativar</button>}
@@ -796,7 +1113,7 @@ export default function App() {
               if (filtroOrdemInicio && o.data < filtroOrdemInicio) return false;
               if (filtroOrdemFim && o.data > filtroOrdemFim) return false;
               return true;
-            }).sort((a, b) => b.data.localeCompare(a.data) || b.hora.localeCompare(a.hora));
+            }).sort((a, b) => b.numero - a.numero);
             const temFiltro = filtroOrdemCliente || filtroOrdemInicio || filtroOrdemFim;
             return (<>
               <div className="page-header">
@@ -804,8 +1121,8 @@ export default function App() {
                 <button className="btn-primary" onClick={() => openModal("ordem")}>+ Nova ordem</button>
               </div>
               {/* Filtros */}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "flex-end" }}>
-                <div style={{ flex: "1 1 200px", minWidth: 180 }}>
+              <div className="ordens-filtros">
+                <div className="ordens-filtro-nome">
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Buscar cliente</div>
                   <input
                     className="form-input"
@@ -815,29 +1132,31 @@ export default function App() {
                     onChange={e => setFiltroOrdemCliente(e.target.value)}
                   />
                 </div>
-                <div style={{ flex: "0 1 160px", minWidth: 140 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Data início</div>
-                  <input
-                    className="form-input"
-                    type="date"
-                    value={filtroOrdemInicio}
-                    onChange={e => setFiltroOrdemInicio(e.target.value)}
-                  />
+                <div className="ordens-filtro-datas">
+                  <div style={{ flex: "0 1 160px", minWidth: 130 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Data início</div>
+                    <input
+                      className="form-input"
+                      type="date"
+                      value={filtroOrdemInicio}
+                      onChange={e => setFiltroOrdemInicio(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ flex: "0 1 160px", minWidth: 130 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Data fim</div>
+                    <input
+                      className="form-input"
+                      type="date"
+                      value={filtroOrdemFim}
+                      onChange={e => setFiltroOrdemFim(e.target.value)}
+                    />
+                  </div>
+                  {temFiltro && (
+                    <button className="btn-sm" style={{ alignSelf: "flex-end", marginBottom: 1 }} onClick={() => { setFiltroOrdemCliente(""); setFiltroOrdemInicio(""); setFiltroOrdemFim(""); }}>
+                      Limpar filtros
+                    </button>
+                  )}
                 </div>
-                <div style={{ flex: "0 1 160px", minWidth: 140 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 }}>Data fim</div>
-                  <input
-                    className="form-input"
-                    type="date"
-                    value={filtroOrdemFim}
-                    onChange={e => setFiltroOrdemFim(e.target.value)}
-                  />
-                </div>
-                {temFiltro && (
-                  <button className="btn-sm" style={{ alignSelf: "flex-end", marginBottom: 1 }} onClick={() => { setFiltroOrdemCliente(""); setFiltroOrdemInicio(""); setFiltroOrdemFim(""); }}>
-                    Limpar filtros
-                  </button>
-                )}
               </div>
               <div className="card table-desktop">
                 <div className="table-wrap">
@@ -849,9 +1168,9 @@ export default function App() {
                       )}
                       {ordensFiltradas.map(o => {
                         const cli = clientes.find(c => c.id === o.clienteId);
-                        const func = USERS.find(u => u.id === o.funcionarioId);
+                        const func = usuarios.find(u => u.id === o.funcionarioId);
                         return (
-                          <tr key={o.id}>
+                          <tr key={o.id} style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
                             <td style={{ fontFamily: "monospace", fontWeight: 700, color: "#5b3fa6" }}>#{o.numero}</td>
                             <td><strong>{cli?.nome} {cli?.sobrenome}</strong></td>
                             <td style={{ color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</td>
@@ -859,13 +1178,12 @@ export default function App() {
                             <td style={{ color: "#6b7280", fontSize: 13 }}>{o.servicos.map(s => s.nome).join(", ")}</td>
                             <td><strong>R$ {totalOrdem(o).toFixed(2)}</strong></td>
                             <td><Badge status={o.status} /></td>
-                            <td style={{ display: "flex", gap: 6 }}>
-                              <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver</button>
-                              {o.status === "agendada" && <button className="btn-sm" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
-                              {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
-                              {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
-                              {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem? Esta ação não pode ser desfeita.")}>Cancelar</button>}
-                              {o.status === "cancelada" && <button className="btn-sm btn-advance" onClick={() => reativarOrdem(o.id)}>Reativar</button>}
+                            <td style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }} onClick={e => e.stopPropagation()}>
+                              {o.status !== "cancelada" ? <>
+                                <button className="btn-sm" disabled style={{ background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e", opacity: 1, cursor: "default" }}>Agendado</button>
+                                <button className="btn-sm" style={["realizada", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "realizada")}>Realizado</button>
+                                <button className="btn-sm" style={["agendamento_pago", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "paga")}>Pago</button>
+                              </> : null}
                             </td>
                           </tr>
                         );
@@ -878,9 +1196,9 @@ export default function App() {
                 {ordensFiltradas.length === 0 && <p className="empty">Nenhuma ordem encontrada.</p>}
                 {ordensFiltradas.map(o => {
                   const cli = clientes.find(c => c.id === o.clienteId);
-                  const func = USERS.find(u => u.id === o.funcionarioId);
+                  const func = usuarios.find(u => u.id === o.funcionarioId);
                   return (
-                    <div key={o.id} className="m-card">
+                    <div key={o.id} className="m-card" style={{ cursor: "pointer" }} onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
                       <div className="m-card-row">
                         <div>
                           <span style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", letterSpacing: ".5px" }}>OS #{o.numero}</span>
@@ -891,13 +1209,12 @@ export default function App() {
                       <div className="m-card-sub">{fmtData(o.data)} · {o.hora} · {func?.nome}</div>
                       <div className="m-card-sub" style={{ fontSize: 12, color: "#9ca3af" }}>{o.servicos.map(s => s.nome).join(", ")}</div>
                       <div style={{ marginTop: 8 }}><Badge status={o.status} /></div>
-                      <div className="m-card-actions">
-                        <button className="btn-sm" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>Ver detalhes</button>
-                        {o.status === "agendada" && <button className="btn-sm btn-edit" onClick={() => abrirEdicaoOrdem(o)}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>}
-                        {o.status === "agendada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Realizado</button>}
-                        {o.status === "realizada" && <button className="btn-sm btn-advance" onClick={() => abrirConfirmarAvanco(o.id)}>→ Pago</button>}
-                        {o.status === "agendada" && <button className="btn-sm btn-danger" onClick={() => confirmar("cancelarOrdem", o.id, "Tem certeza que deseja cancelar esta ordem?")}>Cancelar</button>}
-                        {o.status === "cancelada" && <button className="btn-sm btn-advance" onClick={() => reativarOrdem(o.id)}>Reativar</button>}
+                      <div className="m-card-actions" onClick={e => e.stopPropagation()}>
+                        {o.status !== "cancelada" ? <>
+                          <button className="btn-sm" disabled style={{ background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e", opacity: 1, cursor: "default" }}>Agendado</button>
+                          <button className="btn-sm" style={["realizada", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "realizada")}>Realizado</button>
+                          <button className="btn-sm" style={["agendamento_pago", "paga"].includes(o.status) ? { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" } : {}} onClick={() => abrirConfirmarStatus(o.id, "paga")}>Pago</button>
+                        </> : null}
                       </div>
                     </div>
                   );
@@ -908,46 +1225,104 @@ export default function App() {
 
           {/* AGENDA */}
           {aba === "agenda" && (<>
-            <div className="page-header">
+            <div className="page-header" style={{ marginBottom: 14 }}>
               <h1 className="page-title">Agenda</h1>
-              {user.perfil === "admin" && (
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <select className="form-select" style={{ width: "auto" }} value={filtroFunc} onChange={e => setFiltroFunc(e.target.value)}>
+            </div>
+            <div className="agenda-filter-bar">
+              {/* Espaçador esquerdo (balanceia o grid no desktop) */}
+              <div className="agenda-filter-spacer" />
+              {/* Centro: botões de status */}
+              <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+                {[
+                  { key: "agendado", label: "Agendado", bgOff: "#e8f3fc", colorOff: "#1a6fbb", bgOn: "#1a6fbb", colorOn: "#fff", shadow: "0 2px 8px rgba(26,111,187,.30)" },
+                  { key: "realizado", label: "Realizado", bgOff: "#e6f4ec", colorOff: "#1f7a3e", bgOn: "#1f7a3e", colorOn: "#fff", shadow: "0 2px 8px rgba(31,122,62,.30)" },
+                  { key: "pago", label: "Pago", bgOff: "#eeebfb", colorOff: "#5b3fa6", bgOn: "#5b3fa6", colorOn: "#fff", shadow: "0 2px 8px rgba(91,63,166,.30)" },
+                ].map(({ key, label, bgOff, colorOff, bgOn, colorOn, shadow }) => {
+                  const ativo = filtroStatusAgenda === key;
+                  return (
+                    <button key={key} onClick={() => { setFiltroStatusAgenda(p => p === key ? null : key); setAgendaPagina(0); }} style={{ padding: "8px 28px", borderRadius: 99, border: `2px solid ${ativo ? bgOn : bgOff}`, fontSize: 14, fontWeight: 700, cursor: "pointer", letterSpacing: ".3px", transition: "all .18s", background: ativo ? bgOn : bgOff, color: ativo ? colorOn : colorOff, boxShadow: ativo ? shadow : "none", transform: ativo ? "translateY(-1px)" : "none" }}>{label}</button>
+                  );
+                })}
+              </div>
+              {/* Direita: filtros de funcionário e data (só admin) */}
+              {user.perfil === "admin" ? (
+                <div className="agenda-filter-right">
+                  <select className="form-select" style={{ width: "auto" }} value={filtroFunc} onChange={e => { setFiltroFunc(e.target.value); setAgendaPagina(0); }}>
                     <option value="">Todos os funcionários</option>
                     {funcionarios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
                   </select>
-                  <input type="date" className="form-input" style={{ width: "auto" }} value={filtroData} onChange={e => setFiltroData(e.target.value)} />
-                  {(filtroFunc || filtroData) && <button className="btn-sm" onClick={() => { setFiltroFunc(""); setFiltroData(""); }}>Limpar</button>}
+                  <input type="date" className="form-input" style={{ width: "auto" }} value={filtroData} onChange={e => { setFiltroData(e.target.value); setAgendaPagina(0); }} />
                 </div>
-              )}
+              ) : <div />}
             </div>
-            {ordensFiltradas().length === 0 && <div className="empty">Nenhuma ordem encontrada.</div>}
-            {ordensFiltradas().map(o => {
-              const cli = clientes.find(c => c.id === o.clienteId);
-              const func = USERS.find(u => u.id === o.funcionarioId);
-              return (
-                <div key={o.id} className="agenda-card" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", marginBottom: 2 }}>OS #{o.numero}</div>
-                    <div className="agenda-card-name">{cli?.nome} {cli?.sobrenome}</div>
-                    <div className="agenda-card-sub">{fmtData(o.data)} às {o.hora} · {func?.nome}</div>
-                    <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 3 }}>{o.servicos.map(s => s.nome).join(", ")}</div>
-                  </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>R$ {totalOrdem(o).toFixed(2)}</div>
-                    <Badge status={o.status} />
-                    {o.status === "agendada" && (
-                      <div style={{ marginTop: 8, display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                        {user.perfil === "admin" && (
-                          <button className="btn-sm btn-edit" onClick={e => { e.stopPropagation(); abrirEdicaoOrdem(o); }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>Editar</button>
-                        )}
-                        <button className="btn-sm btn-advance" onClick={e => { e.stopPropagation(); abrirConfirmarAvanco(o.id); }}>Marcar realizado</button>
-                      </div>
-                    )}
-                  </div>
+            {(() => {
+              const todas = ordensFiltradas().sort((a, b) => a.data.localeCompare(b.data) || a.hora.localeCompare(b.hora));
+              const pagSize = 10;
+              const totalPags = Math.ceil(todas.length / pagSize);
+              const paginadas = todas.slice(agendaPagina * pagSize, (agendaPagina + 1) * pagSize);
+              const grupos = {};
+              paginadas.forEach(o => { if (!grupos[o.data]) grupos[o.data] = []; grupos[o.data].push(o); });
+              return (<>
+                {todas.length === 0 && <div className="empty">Nenhuma ordem encontrada.</div>}
+                <div className="agenda-list">
+                  {Object.entries(grupos).map(([data, ordensData]) => (
+                    <React.Fragment key={data}>
+                      <div className="agenda-day-sep">{fmtDataPorExtenso(data)}</div>
+                      {ordensData.map(o => {
+                        const cli = clientes.find(c => c.id === o.clienteId);
+                        const func = usuarios.find(u => u.id === o.funcionarioId);
+                        return (
+                          <div key={o.id} className="agenda-card" onClick={() => { setDetalheOrdem(o); openModal("detalhe"); }}>
+                            <div className="agenda-card-top">
+                              <div style={{ minWidth: 0, flex: 1 }}>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "#5b3fa6", fontFamily: "monospace", marginBottom: 4 }}>OS #{o.numero}</div>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1d23", marginBottom: 6 }}><strong>Cliente: </strong>{cli?.nome} {cli?.sobrenome}</div>
+                                <div style={{ fontSize: 13, lineHeight: 1.7, color: "#374151" }}>
+                                  <div><strong>Data do Serviço: </strong>{fmtData(o.data)}</div>
+                                  <div><strong>Hora: </strong>{o.hora}</div>
+                                  <div><strong>Funcionário: </strong>{func?.nome}</div>
+                                </div>
+                                <div style={{ marginTop: 6 }}>
+                                  {o.servicos.map((s, i) => (
+                                    <div key={i} style={{ fontSize: 12, color: "#9ca3af" }}><strong style={{ color: "#9ca3af" }}>Serviço {i + 1}: </strong>{s.nome}</div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "flex-end" }}>
+                                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                                  <div style={{ fontWeight: 700, fontSize: 16 }}>R$ {totalOrdem(o).toFixed(2)}</div>
+                                  <Badge status={o.status} />
+                                </div>
+                                {user.perfil === "funcionario" && o.status !== "cancelada" && (
+                                  <div onClick={e => e.stopPropagation()}>
+                                    <button
+                                      className="btn-sm"
+                                      style={filtroStatusAgenda === "agendado"
+                                        ? { background: "#1a6fbb", color: "#fff", borderColor: "#1a6fbb" }
+                                        : { background: "#1f7a3e", color: "#fff", borderColor: "#1f7a3e" }}
+                                      onClick={() => abrirConfirmarStatus(o.id, "realizada")}
+                                    >
+                                      Realizado
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
                 </div>
-              );
-            })}
+                {totalPags > 1 && (
+                  <div className="agenda-paginacao">
+                    <button className="pag-btn" disabled={agendaPagina === 0} onClick={() => setAgendaPagina(p => p - 1)}>← Anterior</button>
+                    <span className="pag-info">Página {agendaPagina + 1} de {totalPags}</span>
+                    <button className="pag-btn" disabled={agendaPagina >= totalPags - 1} onClick={() => setAgendaPagina(p => p + 1)}>Próxima →</button>
+                  </div>
+                )}
+              </>);
+            })()}
           </>)}
 
           {/* RELATÓRIOS */}
@@ -955,7 +1330,7 @@ export default function App() {
             <div className="page-header"><h1 className="page-title">Relatórios</h1></div>
             <div className="card" style={{ padding: "20px", marginBottom: 20 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#6b7280", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: 14 }}>Filtros</div>
-              <div className="rel-filter-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 14 }}>
+              <div className="rel-filter-grid">
                 <FormGroup label="Mês início"><input type="month" className="form-input" value={relInicio} onChange={e => setRelInicio(e.target.value)} /></FormGroup>
                 <FormGroup label="Mês fim"><input type="month" className="form-input" value={relFim} onChange={e => setRelFim(e.target.value)} /></FormGroup>
                 <FormGroup label="Tipo de serviço">
@@ -1039,18 +1414,18 @@ export default function App() {
       {/* MODAL EDITAR CLIENTE */}
       {modal === "editarCliente" && (
         <Modal title="Editar cliente" onClose={closeModal} footer={<><button className="btn-cancel-red" onClick={closeModal}>Cancelar</button><button className="btn-success" onClick={salvarEdicaoCliente}>Salvar alterações</button></>}>
-          <div className="form-row cols2">
+          <div className="form-row cols2-force">
             <FInput label="Nome" required value={fCliente.nome} onChange={e => setFCliente(p => ({ ...p, nome: e.target.value }))} error={erros.nome} />
             <FInput label="Sobrenome" value={fCliente.sobrenome} onChange={e => setFCliente(p => ({ ...p, sobrenome: e.target.value }))} />
           </div>
-          <div className="form-row cols2">
+          <div className="form-row cols2-force">
             <FInput label="CPF" required placeholder="000.000.000-00" value={fCliente.cpf} onChange={e => setFCliente(p => ({ ...p, cpf: fmtCPF(e.target.value) }))} error={erros.cpf} />
             <FInput label="Telefone" required placeholder="(65) 99999-0000" value={fCliente.telefone} onChange={e => setFCliente(p => ({ ...p, telefone: fmtTelefone(e.target.value) }))} error={erros.telefone} />
           </div>
           <FInput label="E-mail" type="email" placeholder="cliente@email.com" value={fCliente.email} onChange={e => setFCliente(p => ({ ...p, email: e.target.value }))} />
           <div className="section-sep">Endereço</div>
           <FInput label={<>CEP <span style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af", letterSpacing: 0 }}>— Na versão final ao digitar o CEP puxa os dados de endereço</span></>} placeholder="00000-000" value={fCliente.cep} onChange={e => setFCliente(p => ({ ...p, cep: e.target.value }))} />
-          <div className="form-row cols2">
+          <div className="form-row cols2-force">
             <FInput label="Rua" required value={fCliente.rua} onChange={e => setFCliente(p => ({ ...p, rua: e.target.value }))} error={erros.rua} />
             <FInput label="Número" required value={fCliente.numero} onChange={e => setFCliente(p => ({ ...p, numero: e.target.value }))} error={erros.numero} />
           </div>
@@ -1069,16 +1444,13 @@ export default function App() {
       {modal === "ordem" && (
         <Modal title="Nova ordem de serviço" onClose={closeModal} footer={<><button className="btn-sm" onClick={closeModal}>Cancelar</button><button className="btn-primary" onClick={salvarOrdem}>Salvar ordem</button></>}>
           <div className="form-row cols2">
-            <FSelect label="Cliente" required error={erros.clienteId} value={fOrdem.clienteId} onChange={e => setFOrdem(p => ({ ...p, clienteId: e.target.value }))}>
-              <option value="">Selecione...</option>
-              {clientes.filter(c => c.ativo).map(c => <option key={c.id} value={c.id}>{c.nome} {c.sobrenome}</option>)}
-            </FSelect>
+            <ClienteAutoComplete clienteId={fOrdem.clienteId} onSelect={id => setFOrdem(p => ({ ...p, clienteId: id }))} clientes={clientes} error={erros.clienteId} />
             <FSelect label="Funcionário" required error={erros.funcionarioId} value={fOrdem.funcionarioId} onChange={e => setFOrdem(p => ({ ...p, funcionarioId: e.target.value }))}>
               <option value="">Selecione...</option>
               {funcionarios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
             </FSelect>
           </div>
-          <div className="form-row cols2">
+          <div className="form-row cols2-force">
             <FInput label="Data" required type="date" value={fOrdem.data} onChange={e => setFOrdem(p => ({ ...p, data: e.target.value }))} error={erros.data} />
             <FInput label="Horário" required type="time" value={fOrdem.hora} min="08:00" max="18:00" onChange={e => setFOrdem(p => ({ ...p, hora: e.target.value }))} error={erros.hora} />
           </div>
@@ -1086,32 +1458,48 @@ export default function App() {
           {fOrdem.servicos.map((sv, i) => (
             <div key={i} className="service-row">
               <div>
-                <select className="form-select" style={{ marginBottom: 6 }}
-                  value={sv.servicoId || "__livre"}
+                <label className="svc-field-label">Serviço</label>
+                <select className="form-select"
+                  value={sv.servicoId || ""}
                   onChange={e => {
                     const pred = servicosAtivos.find(s => String(s.id) === e.target.value);
                     setOrdemSvcField(i, "servicoId", e.target.value);
                     if (pred) { setOrdemSvcField(i, "nome", pred.nome); setOrdemSvcField(i, "valor", ""); }
                     else { setOrdemSvcField(i, "nome", ""); setOrdemSvcField(i, "valor", ""); }
                   }}>
-                  <option value="__livre">Personalizado...</option>
+                  <option value="">Selecione um serviço...</option>
                   {servicosAtivos.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
                 </select>
-                {(!sv.servicoId || sv.servicoId === "__livre") && (
-                  <input className="form-input" placeholder="Descreva o serviço" value={sv.nome} onChange={e => setOrdemSvcField(i, "nome", e.target.value)} />
-                )}
               </div>
-              <input className="form-input" type="number" min="1" placeholder="Qtd" value={sv.qtd} onChange={e => setOrdemSvcField(i, "qtd", e.target.value)} />
-              <input className="form-input" type="number" min="0.01" step="0.01" placeholder="R$ valor" value={sv.valor} onChange={e => setOrdemSvcField(i, "valor", e.target.value)} />
-              <button className="btn-rem" onClick={() => setFOrdem(p => ({ ...p, servicos: p.servicos.filter((_, j) => j !== i) }))}>×</button>
+              <div>
+                <label className="svc-field-label">Descrição do Objeto</label>
+                <input className="form-input" placeholder="Ex: sofá cinza, tapete da sala..." value={sv.descricao || ""} onChange={e => setOrdemSvcField(i, "descricao", e.target.value)} />
+              </div>
+              <div className="service-row-bottom">
+                <div>
+                  <label className="svc-field-label">Quantidade</label>
+                  <input className="form-input" type="number" min="1" placeholder="1" value={sv.qtd} onChange={e => setOrdemSvcField(i, "qtd", e.target.value)} />
+                </div>
+                <div>
+                  <label className="svc-field-label">Valor (R$)</label>
+                  <input className="form-input" type="number" min="0.01" step="0.01" placeholder="0,00" value={sv.valor} onChange={e => setOrdemSvcField(i, "valor", e.target.value)} />
+                </div>
+                <button className="btn-rem" onClick={() => setFOrdem(p => ({ ...p, servicos: p.servicos.filter((_, j) => j !== i) }))}>×</button>
+              </div>
             </div>
           ))}
           {erros.servicos && <p className="form-error" style={{ marginBottom: 8 }}>{erros.servicos}</p>}
-          <button className="btn-add-svc" onClick={() => setFOrdem(p => ({ ...p, servicos: [...p.servicos, { servicoId: "", nome: "", qtd: 1, valor: "" }] }))}>+ Adicionar serviço</button>
+          <button className="btn-add-svc" onClick={() => setFOrdem(p => ({ ...p, servicos: [...p.servicos, { servicoId: "", nome: "", qtd: 1, valor: "", descricao: "" }] }))}>+ Adicionar serviço</button>
           <div className="section-sep">Observações</div>
           <FormGroup label="Anotações sobre o serviço">
             <textarea className="form-input" rows="3" placeholder="Ex: Sofá com mancha no canto esquerdo, acesso pelo portão lateral, ligar 30min antes..." value={fOrdem.obs} onChange={e => setFOrdem(p => ({ ...p, obs: e.target.value }))} style={{ resize: "vertical", minHeight: 60 }} />
           </FormGroup>
+          <div className="section-sep">Forma de Pagamento <span style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af" }}>(opcional)</span></div>
+          <div className="pagamento-options">
+            {FORMAS_PAGAMENTO.map(f => (
+              <button key={f} type="button" className={`pagamento-btn${fOrdem.formaPagamento === f ? " selected" : ""}`} onClick={() => setFOrdem(p => ({ ...p, formaPagamento: p.formaPagamento === f ? "" : f }))}>{f}</button>
+            ))}
+          </div>
         </Modal>
       )}
 
@@ -1119,16 +1507,13 @@ export default function App() {
       {modal === "editarOrdem" && (
         <Modal title="Editar ordem de serviço" onClose={closeModal} footer={<><button className="btn-cancel-red" onClick={closeModal}>Cancelar</button><button className="btn-success" onClick={salvarEdicaoOrdem}>Salvar edição</button></>}>
           <div className="form-row cols2">
-            <FSelect label="Cliente" required error={erros.clienteId} value={fOrdem.clienteId} onChange={e => setFOrdem(p => ({ ...p, clienteId: e.target.value }))}>
-              <option value="">Selecione...</option>
-              {clientes.filter(c => c.ativo).map(c => <option key={c.id} value={c.id}>{c.nome} {c.sobrenome}</option>)}
-            </FSelect>
+            <ClienteAutoComplete clienteId={fOrdem.clienteId} onSelect={id => setFOrdem(p => ({ ...p, clienteId: id }))} clientes={clientes} error={erros.clienteId} />
             <FSelect label="Funcionário" required error={erros.funcionarioId} value={fOrdem.funcionarioId} onChange={e => setFOrdem(p => ({ ...p, funcionarioId: e.target.value }))}>
               <option value="">Selecione...</option>
               {funcionarios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
             </FSelect>
           </div>
-          <div className="form-row cols2">
+          <div className="form-row cols2-force">
             <FInput label="Data" required type="date" value={fOrdem.data} onChange={e => setFOrdem(p => ({ ...p, data: e.target.value }))} error={erros.data} />
             <FInput label="Horário" required type="time" value={fOrdem.hora} min="08:00" max="18:00" onChange={e => setFOrdem(p => ({ ...p, hora: e.target.value }))} error={erros.hora} />
           </div>
@@ -1136,82 +1521,212 @@ export default function App() {
           {fOrdem.servicos.map((sv, i) => (
             <div key={i} className="service-row">
               <div>
-                <select className="form-select" style={{ marginBottom: 6 }}
-                  value={sv.servicoId || "__livre"}
+                <label className="svc-field-label">Serviço</label>
+                <select className="form-select"
+                  value={sv.servicoId || ""}
                   onChange={e => {
                     const pred = servicosAtivos.find(s => String(s.id) === e.target.value);
                     setOrdemSvcField(i, "servicoId", e.target.value);
                     if (pred) { setOrdemSvcField(i, "nome", pred.nome); setOrdemSvcField(i, "valor", ""); }
                     else { setOrdemSvcField(i, "nome", ""); setOrdemSvcField(i, "valor", ""); }
                   }}>
-                  <option value="__livre">Personalizado...</option>
+                  <option value="">Selecione um serviço...</option>
                   {servicosAtivos.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
                 </select>
-                {(!sv.servicoId || sv.servicoId === "__livre") && (
-                  <input className="form-input" placeholder="Descreva o serviço" value={sv.nome} onChange={e => setOrdemSvcField(i, "nome", e.target.value)} />
-                )}
               </div>
-              <input className="form-input" type="number" min="1" placeholder="Qtd" value={sv.qtd} onChange={e => setOrdemSvcField(i, "qtd", e.target.value)} />
-              <input className="form-input" type="number" min="0.01" step="0.01" placeholder="R$ valor" value={sv.valor} onChange={e => setOrdemSvcField(i, "valor", e.target.value)} />
-              <button className="btn-rem" onClick={() => setFOrdem(p => ({ ...p, servicos: p.servicos.filter((_, j) => j !== i) }))}>×</button>
+              <div>
+                <label className="svc-field-label">Descrição do Objeto</label>
+                <input className="form-input" placeholder="Ex: sofá cinza, tapete da sala..." value={sv.descricao || ""} onChange={e => setOrdemSvcField(i, "descricao", e.target.value)} />
+              </div>
+              <div className="service-row-bottom">
+                <div>
+                  <label className="svc-field-label">Quantidade</label>
+                  <input className="form-input" type="number" min="1" placeholder="1" value={sv.qtd} onChange={e => setOrdemSvcField(i, "qtd", e.target.value)} />
+                </div>
+                <div>
+                  <label className="svc-field-label">Valor (R$)</label>
+                  <input className="form-input" type="number" min="0.01" step="0.01" placeholder="0,00" value={sv.valor} onChange={e => setOrdemSvcField(i, "valor", e.target.value)} />
+                </div>
+                <button className="btn-rem" onClick={() => setFOrdem(p => ({ ...p, servicos: p.servicos.filter((_, j) => j !== i) }))}>×</button>
+              </div>
             </div>
           ))}
           {erros.servicos && <p className="form-error" style={{ marginBottom: 8 }}>{erros.servicos}</p>}
-          <button className="btn-add-svc" onClick={() => setFOrdem(p => ({ ...p, servicos: [...p.servicos, { servicoId: "", nome: "", qtd: 1, valor: "" }] }))}>+ Adicionar serviço</button>
+          <button className="btn-add-svc" onClick={() => setFOrdem(p => ({ ...p, servicos: [...p.servicos, { servicoId: "", nome: "", qtd: 1, valor: "", descricao: "" }] }))}>+ Adicionar serviço</button>
           <div className="section-sep">Observações</div>
           <FormGroup label="Anotações sobre o serviço">
             <textarea className="form-input" rows="3" placeholder="Ex: Sofá com mancha no canto esquerdo, acesso pelo portão lateral, ligar 30min antes..." value={fOrdem.obs} onChange={e => setFOrdem(p => ({ ...p, obs: e.target.value }))} style={{ resize: "vertical", minHeight: 60 }} />
           </FormGroup>
+          <div className="section-sep">Forma de Pagamento <span style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af" }}>(opcional)</span></div>
+          <div className="pagamento-options">
+            {FORMAS_PAGAMENTO.map(f => (
+              <button key={f} type="button" className={`pagamento-btn${fOrdem.formaPagamento === f ? " selected" : ""}`} onClick={() => setFOrdem(p => ({ ...p, formaPagamento: p.formaPagamento === f ? "" : f }))}>{f}</button>
+            ))}
+          </div>
         </Modal>
       )}
 
-      {/* MODAL DETALHE */}
+      {/* MODAL DETALHE / EDIÇÃO */}
       {modal === "detalhe" && detalheOrdem && (() => {
         const o = ordens.find(x => x.id === detalheOrdem.id) || detalheOrdem;
         const cli = clientes.find(c => c.id === o.clienteId);
-        const func = USERS.find(u => u.id === o.funcionarioId);
+        const func = usuarios.find(u => u.id === o.funcionarioId);
+        const footerView = (
+          <>
+            {o.status === "agendada" && (
+              <button className="btn-cancel-red" style={{ marginRight: "auto" }} onClick={() => { confirmar("cancelarOrdem", o.id, `Tem certeza que deseja cancelar a OS #${o.numero}? Esta ação não pode ser desfeita.`); }}>
+                Cancelar OS
+              </button>
+            )}
+            {o.status === "cancelada" && (
+              <button className="btn-advance btn-sm" style={{ marginRight: "auto" }} onClick={() => { reativarOrdem(o.id); closeModal(); }}>
+                Reativar OS
+              </button>
+            )}
+            {["agendada", "agendamento_pago"].includes(o.status) && (
+              <button className="btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }} onClick={() => entrarModoEdicaoDetalhe(o)}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                Editar
+              </button>
+            )}
+            <button className="btn-sm" onClick={closeModal}>Fechar</button>
+          </>
+        );
+        const footerEdit = (
+          <>
+            <button className="btn-cancel-red" onClick={cancelarEdicaoDetalhe}>Cancelar Edição</button>
+            <button className="btn-success" onClick={salvarEdicaoOrdem}>Salvar Edição</button>
+          </>
+        );
         return (
-          <Modal title={`Detalhes da OS #${o.numero}`} onClose={closeModal} footer={<button className="btn-sm" onClick={closeModal}>Fechar</button>}>
-            <div className="detail-grid">
-              <div><div className="detail-label">Cliente</div><div className="detail-value">{cli?.nome} {cli?.sobrenome}</div></div>
-              <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
-              <div><div className="detail-label">Data / Hora</div><div className="detail-value">{fmtData(o.data)} às {o.hora}</div></div>
-              <div><div className="detail-label">Funcionário</div><div className="detail-value">{func?.nome}</div></div>
-              <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div><a className="btn-maps" href={mapsUrl(o.endereco, cli)} target="_blank" rel="noopener noreferrer"><MapsPinIcon />Ver no Google Maps</a></div>
-              <div><div className="detail-label">Status</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
-            </div>
-            {o.obs && <>
-              <div className="section-sep">Observações</div>
-              <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, background: "#f9fafb", borderRadius: 8, padding: "10px 14px", border: "1px solid #f0f2f5" }}>{o.obs}</p>
-            </>}
-            <div className="section-sep">Serviços</div>
-            {o.servicos.map((s, i) => (
-              <div key={i} className="svc-list-row">
-                <span>{s.nome} <span style={{ color: "#9ca3af" }}>× {s.qtd}</span></span>
-                <span>R$ {(s.qtd * s.valor).toFixed(2)}</span>
-              </div>
-            ))}
-            <div className="svc-total"><span>Total</span><span>R$ {totalOrdem(o).toFixed(2)}</span></div>
+          <Modal
+            title={detalheEditando ? `Editar OS #${o.numero}` : `Detalhes da OS #${o.numero}`}
+            onClose={detalheEditando ? cancelarEdicaoDetalhe : closeModal}
+            footer={detalheEditando ? footerEdit : footerView}
+          >
+            {!detalheEditando ? (
+              <>
+                <div className="detail-grid">
+                  <div><div className="detail-label">Cliente</div><div className="detail-value">{cli?.nome} {cli?.sobrenome}</div></div>
+                  <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
+                  <div><div className="detail-label">Data / Hora</div><div className="detail-value">{fmtData(o.data)} às {o.hora}</div></div>
+                  <div><div className="detail-label">Funcionário</div><div className="detail-value">{func?.nome}</div></div>
+                  <div style={{ gridColumn: "1/-1" }}><div className="detail-label">Endereço</div><div className="detail-value">{o.endereco}</div><a className="btn-maps" href={mapsUrl(o.endereco, cli)} target="_blank" rel="noopener noreferrer"><MapsPinIcon />Ver no Google Maps</a></div>
+                  <div><div className="detail-label">Status</div><div style={{ marginTop: 4 }}><Badge status={o.status} /></div></div>
+                  {o.formaPagamento && <div><div className="detail-label">Forma de Pagamento</div><div className="detail-value">{o.formaPagamento}</div></div>}
+                </div>
+                {o.obs && <>
+                  <div className="section-sep">Observações</div>
+                  <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, background: "#f9fafb", borderRadius: 8, padding: "10px 14px", border: "1px solid #f0f2f5" }}>{o.obs}</p>
+                </>}
+                <div className="section-sep">Serviços</div>
+                {o.servicos.map((s, i) => (
+                  <div key={i} className="svc-list-row">
+                    <div>
+                      <div>{s.nome} <span style={{ color: "#9ca3af" }}>× {s.qtd}</span></div>
+                      {s.descricao && <div style={{ fontSize: 12, color: "#9ca3af", fontStyle: "italic", marginTop: 1 }}>{s.descricao}</div>}
+                    </div>
+                    <span style={{ flexShrink: 0, marginLeft: 12 }}>R$ {(s.qtd * s.valor).toFixed(2)}</span>
+                  </div>
+                ))}
+                <div className="svc-total"><span>Total</span><span>R$ {totalOrdem(o).toFixed(2)}</span></div>
+              </>
+            ) : (
+              <>
+                <div className="form-row cols2">
+                  <ClienteAutoComplete clienteId={fOrdem.clienteId} onSelect={id => setFOrdem(p => ({ ...p, clienteId: id }))} clientes={clientes} error={erros.clienteId} />
+                  <FSelect label="Funcionário" required error={erros.funcionarioId} value={fOrdem.funcionarioId} onChange={e => setFOrdem(p => ({ ...p, funcionarioId: e.target.value }))}>
+                    <option value="">Selecione...</option>
+                    {funcionarios.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                  </FSelect>
+                </div>
+                <div className="form-row cols2-force">
+                  <FInput label="Data" required type="date" value={fOrdem.data} onChange={e => setFOrdem(p => ({ ...p, data: e.target.value }))} error={erros.data} />
+                  <FInput label="Horário" required type="time" value={fOrdem.hora} min="08:00" max="18:00" onChange={e => setFOrdem(p => ({ ...p, hora: e.target.value }))} error={erros.hora} />
+                </div>
+                <div className="section-sep">Serviços</div>
+                {fOrdem.servicos.map((sv, i) => (
+                  <div key={i} className="service-row">
+                    <div>
+                      <label className="svc-field-label">Serviço</label>
+                      <select className="form-select"
+                        value={sv.servicoId || ""}
+                        onChange={e => {
+                          const pred = servicosAtivos.find(s => String(s.id) === e.target.value);
+                          setOrdemSvcField(i, "servicoId", e.target.value);
+                          if (pred) { setOrdemSvcField(i, "nome", pred.nome); setOrdemSvcField(i, "valor", ""); }
+                          else { setOrdemSvcField(i, "nome", ""); setOrdemSvcField(i, "valor", ""); }
+                        }}>
+                        <option value="">Selecione um serviço...</option>
+                        {servicosAtivos.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="svc-field-label">Descrição do Objeto</label>
+                      <input className="form-input" placeholder="Ex: sofá cinza, tapete da sala..." value={sv.descricao || ""} onChange={e => setOrdemSvcField(i, "descricao", e.target.value)} />
+                    </div>
+                    <div className="service-row-bottom">
+                      <div>
+                        <label className="svc-field-label">Quantidade</label>
+                        <input className="form-input" type="number" min="1" placeholder="1" value={sv.qtd} onChange={e => setOrdemSvcField(i, "qtd", e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="svc-field-label">Valor (R$)</label>
+                        <input className="form-input" type="number" min="0.01" step="0.01" placeholder="0,00" value={sv.valor} onChange={e => setOrdemSvcField(i, "valor", e.target.value)} />
+                      </div>
+                      <button className="btn-rem" onClick={() => setFOrdem(p => ({ ...p, servicos: p.servicos.filter((_, j) => j !== i) }))}>×</button>
+                    </div>
+                  </div>
+                ))}
+                {erros.servicos && <p className="form-error" style={{ marginBottom: 8 }}>{erros.servicos}</p>}
+                <button className="btn-add-svc" onClick={() => setFOrdem(p => ({ ...p, servicos: [...p.servicos, { servicoId: "", nome: "", qtd: 1, valor: "", descricao: "" }] }))}>+ Adicionar serviço</button>
+                <div className="section-sep">Observações</div>
+                <FormGroup label="Anotações sobre o serviço">
+                  <textarea className="form-input" rows="3" placeholder="Ex: Sofá com mancha no canto esquerdo, acesso pelo portão lateral, ligar 30min antes..." value={fOrdem.obs} onChange={e => setFOrdem(p => ({ ...p, obs: e.target.value }))} style={{ resize: "vertical", minHeight: 60 }} />
+                </FormGroup>
+                <div className="section-sep">Forma de Pagamento <span style={{ fontWeight: 400, fontSize: 11, color: "#9ca3af" }}>(opcional)</span></div>
+                <div className="pagamento-options">
+                  {FORMAS_PAGAMENTO.map(f => (
+                    <button key={f} type="button" className={`pagamento-btn${fOrdem.formaPagamento === f ? " selected" : ""}`} onClick={() => setFOrdem(p => ({ ...p, formaPagamento: p.formaPagamento === f ? "" : f }))}>{f}</button>
+                  ))}
+                </div>
+              </>
+            )}
           </Modal>
         );
       })()}
 
-      {/* MODAL CONFIRMAÇÃO AVANÇO DE STATUS */}
+      {/* MODAL CONFIRMAÇÃO DE STATUS */}
       {modal === "confirmarAvanco" && ordemAvancando && (() => {
-        const o = ordens.find(x => x.id === ordemAvancando);
+        const { id: avancId, targetStatus } = ordemAvancando;
+        const o = ordens.find(x => x.id === avancId);
         if (!o) return null;
         const cli = clientes.find(c => c.id === o.clienteId);
-        const func = USERS.find(u => u.id === o.funcionarioId);
-        const proximoLabel = o.status === "agendada" ? "Realizado" : "Pago";
+        const func = usuarios.find(u => u.id === o.funcionarioId);
+        const newStatus = calcularNovoStatus(o.status, targetStatus);
+        const msgs = {
+          "agendada>realizada": { titulo: "Marcar Serviço Realizado", msg: "Confirmar que o serviço desta OS foi realizado?", btn: "Marcar Realizado", cls: "btn-success" },
+          "realizada>agendada": { titulo: "Desfazer Serviço Realizado", msg: "Desfazer 'Serviço Realizado'? A OS voltará para Agendada.", btn: "Sim, desfazer", cls: "btn-primary" },
+          "agendamento_pago>paga": { titulo: "Marcar Serviço Realizado", msg: "O pagamento já foi recebido. Confirmar que o serviço foi realizado? A OS será finalizada.", btn: "Marcar Realizado", cls: "btn-success" },
+          "paga>agendamento_pago": { titulo: "Desfazer Serviço Realizado", msg: "Desfazer 'Serviço Realizado'? A OS voltará para Agendamento Pago.", btn: "Sim, desfazer", cls: "btn-primary" },
+          "agendada>agendamento_pago": { titulo: "Registrar Pagamento", msg: "Confirmar que o pagamento foi recebido? O serviço ainda não foi realizado.", btn: "Registrar Pagamento", cls: "btn-success" },
+          "agendamento_pago>agendada": { titulo: "Desfazer Pagamento", msg: "Desfazer o recebimento do pagamento? A OS voltará para Agendada.", btn: "Sim, desfazer", cls: "btn-primary" },
+          "realizada>paga": { titulo: "Registrar Pagamento", msg: "Confirmar que o pagamento desta OS foi recebido?", btn: "Registrar Pagamento", cls: "btn-success" },
+          "paga>realizada": { titulo: "Desfazer Pagamento", msg: "Desfazer o recebimento do pagamento? A OS voltará para Serviço Realizado.", btn: "Sim, desfazer", cls: "btn-primary" },
+        };
+        const chave = `${o.status}>${newStatus}`;
+        const isPaymentAction = ["agendada>agendamento_pago", "realizada>paga"].includes(chave);
+        const { titulo, msg: msgAcao, btn: labelBtn, cls: btnClass } = msgs[chave] || { titulo: "Confirmar", msg: "", btn: "Confirmar", cls: "btn-success" };
         return (
           <Modal
-            title={`OS #${o.numero} — Marcar como ${proximoLabel}`}
+            title={`OS #${o.numero} — ${titulo}`}
             onClose={closeModal}
             footer={<>
-              <button className="btn-cancel-red" onClick={closeModal}>Cancelar</button>
-              <button className="btn-success" onClick={() => { avancarStatus(o.id); closeModal(); }}>{proximoLabel}</button>
+              <button className="btn-sm" onClick={closeModal}>Cancelar</button>
+              <button className={btnClass} disabled={isPaymentAction && !confirmarFormaPagamento} style={isPaymentAction && !confirmarFormaPagamento ? { opacity: .45, cursor: "not-allowed" } : {}} onClick={() => { mudarStatus(avancId, newStatus, isPaymentAction ? confirmarFormaPagamento : null); closeModal(); }}>{labelBtn}</button>
             </>}
           >
+            <p className="confirm-msg" style={{ marginBottom: 16 }}>{msgAcao}</p>
             <div className="detail-grid">
               <div><div className="detail-label">Cliente</div><div className="detail-value">{cli?.nome} {cli?.sobrenome}</div></div>
               <div><div className="detail-label">Telefone</div><div className="detail-value">{cli?.telefone}</div></div>
@@ -1227,11 +1742,155 @@ export default function App() {
             <div className="section-sep">Serviços</div>
             {o.servicos.map((s, i) => (
               <div key={i} className="svc-list-row">
-                <span>{s.nome} <span style={{ color: "#9ca3af" }}>× {s.qtd}</span></span>
-                <span>R$ {(s.qtd * s.valor).toFixed(2)}</span>
+                <div>
+                  <div>{s.nome} <span style={{ color: "#9ca3af" }}>× {s.qtd}</span></div>
+                  {s.descricao && <div style={{ fontSize: 12, color: "#9ca3af", fontStyle: "italic", marginTop: 1 }}>{s.descricao}</div>}
+                </div>
+                <span style={{ flexShrink: 0, marginLeft: 12 }}>R$ {(s.qtd * s.valor).toFixed(2)}</span>
               </div>
             ))}
             <div className="svc-total"><span>Total</span><span>R$ {totalOrdem(o).toFixed(2)}</span></div>
+            {isPaymentAction && <>
+              <div className="section-sep">
+                Forma de Pagamento
+                <span style={{ color: "#b83232", marginLeft: 4 }}>*</span>
+                {!confirmarFormaPagamento && <span style={{ fontWeight: 400, fontSize: 11, color: "#b83232", marginLeft: 6 }}>obrigatório</span>}
+              </div>
+              <div className="pagamento-options">
+                {FORMAS_PAGAMENTO.map(f => (
+                  <button key={f} type="button" className={`pagamento-btn${confirmarFormaPagamento === f ? " selected" : ""}`} onClick={() => setConfirmarFormaPagamento(p => p === f ? "" : f)}>{f}</button>
+                ))}
+              </div>
+            </>}
+          </Modal>
+        );
+      })()}
+
+      {/* MODAL NOVO USUÁRIO */}
+      {modal === "novoUsuario" && (
+        <Modal title="Novo usuário" onClose={closeModal} footer={<><button className="btn-sm" onClick={closeModal}>Cancelar</button><button className="btn-primary" onClick={salvarNovoUsuario}>Cadastrar</button></>}>
+          <div className="form-row cols2">
+            <FormGroup label="Nome" required error={erros.uNome}>
+              <input className="form-input" value={fNovoUsuario.nome} onChange={e => setFNovoUsuario(p => ({ ...p, nome: e.target.value }))} />
+            </FormGroup>
+            <FormGroup label="Perfil" required>
+              <select className="form-input" value={fNovoUsuario.perfil} onChange={e => setFNovoUsuario(p => ({ ...p, perfil: e.target.value }))}>
+                <option value="funcionario">Funcionário</option>
+                <option value="admin">Admin</option>
+              </select>
+            </FormGroup>
+          </div>
+          <FormGroup label="E-mail" required error={erros.uEmail}>
+            <input className="form-input" type="email" value={fNovoUsuario.email} onChange={e => setFNovoUsuario(p => ({ ...p, email: e.target.value }))} />
+          </FormGroup>
+          <FormGroup label="Senha" required error={erros.uSenha}>
+            <input className="form-input" type="password" placeholder="Mínimo 6 caracteres" value={fNovoUsuario.senha} onChange={e => setFNovoUsuario(p => ({ ...p, senha: e.target.value }))} />
+          </FormGroup>
+        </Modal>
+      )}
+
+      {/* MODAL OPÇÕES */}
+      {modal === "opcoes" && (
+        <Modal title="Opções" onClose={closeModal}>
+          <div style={{ padding: "0 4px" }}>
+            {user.perfil === "admin" && (
+              <button className="opcoes-item" onClick={() => { setAba("funcionarios"); closeModal(); }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Funcionários
+              </button>
+            )}
+            <button className="opcoes-item" onClick={() => { setFResetSenha({ nova: "" }); setErros({}); setModal("resetSenhaPropria"); }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
+              Reset de senha
+            </button>
+            <button className="opcoes-item opcoes-item-danger" onClick={() => setModal("confirmLogout")}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+              Sair
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* MODAL RESET SENHA PRÓPRIA */}
+      {modal === "resetSenhaPropria" && (
+        <Modal title="Redefinir minha senha" onClose={closeModal} footer={<><button className="btn-sm" onClick={closeModal}>Cancelar</button><button className="btn-primary" onClick={salvarResetSenhaPropria}>Salvar nova senha</button></>}>
+          <FormGroup label="Nova senha" required error={erros.resetNova}>
+            <input className="form-input" type="password" placeholder="Mínimo 6 caracteres" value={fResetSenha.nova} onChange={e => setFResetSenha({ nova: e.target.value })} />
+          </FormGroup>
+        </Modal>
+      )}
+
+      {/* MODAL DETALHE USUÁRIO */}
+      {modal === "detalheUsuario" && usuarioDetalhe && (() => {
+        const u = usuarios.find(x => x.id === usuarioDetalhe.id) || usuarioDetalhe;
+        return (
+          <Modal
+            title={u.nome}
+            onClose={closeModal}
+            footer={<>
+              {u.id !== user.id && (
+                u.ativo
+                  ? <button className="btn-cancel-red" style={{ marginRight: "auto" }} onClick={() => inativarUsuario(u.id)}>Inativar</button>
+                  : <button className="btn-advance btn-sm" style={{ marginRight: "auto" }} onClick={() => reativarUsuario(u.id)}>Reativar</button>
+              )}
+              <button className="btn-sm btn-edit" onClick={() => { setFUsuario({ nome: u.nome, email: u.email }); setErros({}); setModal("editarUsuario"); }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+                Editar
+              </button>
+              <button className="btn-sm btn-advance" onClick={() => { setFResetSenha({ nova: "" }); setErros({}); setModal("resetarSenhaUsuario"); }}>Resetar Senha</button>
+              <button className="btn-sm" onClick={closeModal}>Fechar</button>
+            </>}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280", fontSize: 13 }}>Nome</span>
+                <strong style={{ fontSize: 14 }}>{u.nome}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280", fontSize: 13 }}>E-mail</span>
+                <span style={{ fontSize: 14 }}>{u.email}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280", fontSize: 13 }}>Perfil</span>
+                <span className="badge" style={{ background: u.perfil === "admin" ? "#eeebfb" : "#e8f3fc", color: u.perfil === "admin" ? "#5b3fa6" : "#1a6fbb" }}>
+                  {u.perfil === "admin" ? "Administrador" : "Funcionário"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#6b7280", fontSize: 13 }}>Status</span>
+                <span className="badge" style={{ background: u.ativo ? "#e6f4ec" : "#fdeaea", color: u.ativo ? "#1f7a3e" : "#b83232" }}>{u.ativo ? "Ativo" : "Inativo"}</span>
+              </div>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {/* MODAL EDITAR USUÁRIO */}
+      {modal === "editarUsuario" && usuarioDetalhe && (
+        <Modal title="Editar usuário" onClose={() => { setModal("detalheUsuario"); setErros({}); }} footer={<>
+          <button className="btn-sm" onClick={() => { setModal("detalheUsuario"); setErros({}); }}>Cancelar</button>
+          <button className="btn-primary" onClick={salvarEdicaoUsuario}>Salvar alterações</button>
+        </>}>
+          <FormGroup label="Nome" required error={erros.uNome}>
+            <input className="form-input" value={fUsuario.nome} onChange={e => setFUsuario(p => ({ ...p, nome: e.target.value }))} />
+          </FormGroup>
+          <FormGroup label="E-mail" required error={erros.uEmail}>
+            <input className="form-input" type="email" value={fUsuario.email} onChange={e => setFUsuario(p => ({ ...p, email: e.target.value }))} />
+          </FormGroup>
+        </Modal>
+      )}
+
+      {/* MODAL RESETAR SENHA DE USUÁRIO */}
+      {modal === "resetarSenhaUsuario" && usuarioDetalhe && (() => {
+        const u = usuarios.find(x => x.id === usuarioDetalhe.id) || usuarioDetalhe;
+        return (
+          <Modal title={`Resetar senha — ${u.nome}`} onClose={() => { setModal("detalheUsuario"); setErros({}); setFResetSenha({ nova: "" }); }} footer={<>
+            <button className="btn-sm" onClick={() => { setModal("detalheUsuario"); setErros({}); setFResetSenha({ nova: "" }); }}>Cancelar</button>
+            <button className="btn-primary" onClick={salvarResetarSenhaUsuario}>Salvar nova senha</button>
+          </>}>
+            <FormGroup label="Nova senha" required error={erros.resetNova}>
+              <input className="form-input" type="password" placeholder="Mínimo 6 caracteres" value={fResetSenha.nova} onChange={e => setFResetSenha({ nova: e.target.value })} />
+            </FormGroup>
           </Modal>
         );
       })()}
@@ -1242,6 +1901,43 @@ export default function App() {
           <p className="confirm-msg">Deseja realmente sair do sistema?</p>
         </Modal>
       )}
+
+      {/* MODAL HISTÓRICO DO CLIENTE */}
+      {modal === "historicoCliente" && historicoClienteId && (() => {
+        const cli = clientes.find(c => c.id === historicoClienteId);
+        const historico = ordens
+          .filter(o => o.clienteId === historicoClienteId)
+          .sort((a, b) => b.data.localeCompare(a.data) || b.numero - a.numero);
+        return (
+          <Modal title={`Histórico — ${cli?.nome} ${cli?.sobrenome}`} onClose={closeModal} footer={<button className="btn-sm" onClick={closeModal}>Fechar</button>}>
+            {historico.length === 0 ? (
+              <p style={{ color: "#9ca3af", textAlign: "center", padding: "24px 0" }}>Nenhuma ordem encontrada para este cliente.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {historico.map(o => (
+                  <div key={o.id} style={{ borderBottom: "1px solid #f0f0f0", paddingBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#5b3fa6", fontSize: 13 }}>OS #{o.numero}</span>
+                        <span style={{ fontSize: 13, color: "#6b7280" }}>{fmtData(o.data)} · {o.hora}</span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Badge status={o.status} />
+                        <strong style={{ fontSize: 14 }}>R$ {totalOrdem(o).toFixed(2).replace(".", ",")}</strong>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: "#4b5563" }}>
+                      {o.servicos.map((s, i) => (
+                        <span key={i}>{s.nome} {s.qtd > 1 ? `(${s.qtd}x)` : ""}{i < o.servicos.length - 1 ? " · " : ""}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
 
       {/* MODAL CONFIRMAÇÃO */}
       {modal === "confirm" && confirmData && (
