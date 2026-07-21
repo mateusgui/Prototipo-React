@@ -3,7 +3,7 @@
 ## Sistema de Gestão para Lavanderia ("Sistema de Lavanderia")
 
 > **Norma de referência:** ISO/IEC/IEEE 29148:2018 (adaptação do modelo IEEE 830).
-> **Versão do documento:** 2.1
+> **Versão do documento:** 2.2
 > **Data:** Julho de 2026
 > **Situação:** Baseline de requisitos para **implementação do zero** (greenfield). Nenhum requisito é considerado entregue.
 > **Autor:** Equipe de desenvolvimento
@@ -302,7 +302,7 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 | ID | Requisito | Prioridade | Referência | Origem |
 |---|---|---|---|---|
 | **RF-DSH-01** | O Dashboard deve ter um **seletor de competência** (mês/ano) que governa todos os dados exibidos. | Alta | Protótipo | Protótipo |
-| **RF-DSH-02** | O Dashboard deve exibir os KPIs do mês: **Agendadas**, **Pendente de Execução** (`AGENDAMENTO_PAGO`), **Pendente de Pagamento** (`REALIZADA`) e **Faturamento** (`PAGA` + `AGENDAMENTO_PAGO`). | Alta | Protótipo | MVP05, RN-15 |
+| **RF-DSH-02** | O Dashboard deve exibir os KPIs do mês: **Agendadas**, **Pendente de Execução** (`AGENDAMENTO_PAGO`), **Pendente de Pagamento** (`REALIZADA`) e **Faturamento** (`PAGA` + `AGENDAMENTO_PAGO`, conforme RN-19). A competência do mês é a **data do serviço** (RN-20). | Alta | Protótipo | MVP05, RN-15, RN-19, RN-20 |
 | **RF-DSH-03** | Os **KPI cards** devem ser clicáveis, filtrando a lista de ordens abaixo por status (drill-down). | Alta | Protótipo | Protótipo |
 | **RF-DSH-04** | A lista do Dashboard deve ter **ordenação definida**: sem filtro, pendentes primeiro (por data/hora), demais por número desc — nunca por ordem de inserção. | Essencial | Protótipo | F05 |
 | **RF-DSH-05** | A lista do Dashboard deve ser **paginada** (10/página). | Média | Protótipo | SDD §9.4 |
@@ -313,8 +313,9 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 
 | ID | Requisito | Prioridade | Referência | Origem |
 |---|---|---|---|---|
-| **RF-REL-01** | Os relatórios devem considerar ordens `PAGA` filtráveis por **intervalo de meses, tipo de serviço e funcionário** (filtros combináveis). | Alta | Protótipo | Protótipo |
-| **RF-REL-02** | Os relatórios devem exibir **faturamento total**, **quantidade de ordens pagas** e **receita por tipo de serviço** (ranking desc). | Alta | Protótipo | RN-15 |
+| **RF-REL-01** | Os relatórios devem considerar as ordens **com pagamento registrado — `PAGA` + `AGENDAMENTO_PAGO`** (mesma base do Dashboard, RN-19) — filtráveis por **intervalo de meses, tipo de serviço e funcionário** (filtros combináveis). | Alta | Protótipo (parcial) | Protótipo, RN-19 |
+| **RF-REL-02** | Os relatórios devem exibir **faturamento total**, **quantidade de ordens com pagamento registrado** e **receita por tipo de serviço** (ranking desc). O faturamento deve ser **idêntico** ao KPI "Faturamento" do Dashboard (RF-DSH-02) quando os filtros equivalerem à mesma competência. | Alta | Protótipo (parcial) | RN-15, RN-19 |
+| **RF-REL-08** | A **competência** de toda métrica de relatório e de Dashboard é a **data do serviço** (`Ordem.data`), nunca a data de emissão nem a data em que o pagamento foi registrado. Uma OS executada em março e paga em abril é receita **de março**. | Alta | Novo | RN-20 |
 | **RF-REL-03** | Os relatórios devem exibir **receita por mês** como gráfico de barras em tela. | Alta | Protótipo | Protótipo |
 | **RF-REL-04** | O **período inicial** dos relatórios deve ser **calculado dinamicamente** (ex.: últimos 6 meses até o mês atual), nunca hardcoded. | Alta | Novo | F11 |
 | **RF-REL-05** | O botão **"Limpar filtros"** deve limpar apenas serviço e funcionário, **preservando o período** selecionado. | Média | Novo | F15 |
@@ -357,10 +358,12 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 | **RN-12** | **Isolamento do funcionário**: funcionário só vê/edita ordens onde é o responsável; nunca ordens de terceiros. Aplicado no servidor. | RF-AUT-04, RF-AGD-05 |
 | **RN-13** | **E-mail único** de usuário; senha mínima de 6 caracteres. | RF-USR-02, RF-USR-03 |
 | **RN-14** | **Pagamento exige forma**: transições para status pago requerem `formaPagamento` selecionada. | RF-OS-10 |
-| **RN-15** | **Cálculos**: Total da OS = Σ(qtd × valor); KPIs e faturamento conforme RF-DSH-02; relatórios sobre ordens `PAGA`. Valores monetários em `Decimal` (nunca `float`). | RF-DSH-02, RF-REL-02 |
+| **RN-15** | **Cálculos**: Total da OS = Σ(qtd × valor). Faturamento conforme RN-19; competência conforme RN-20. Valores monetários em `Decimal` (nunca `float`). | RF-DSH-02, RF-REL-02 |
 | **RN-16** | **Número de OS** sequencial, único e gerado transacionalmente (sem duplicatas em concorrência). | RF-OS-01, RNF-CON-01 |
 | **RN-17** | **PDF stateless / envio manual**: o PDF da OS é gerado **sob demanda no cliente**, **somente** no momento do envio, **nunca é armazenado** (local, servidor ou banco) e **não gera histórico de envios**. O envio é **manual** (o sistema apenas gera e abre o compartilhamento; quem envia é o usuário). Sem servidor de mensageria e sem disparo automático. | RF-OS-21, RF-OS-24, RES-07 |
 | **RN-18** | **Sessão de longa duração**: a autenticação persiste por **30 dias**, renovados a cada acesso (janela rolante, reemissão no máximo a cada 24h). O usuário **não é deslogado** por fechar o navegador, por inatividade curta ou por troca de aba/aparelho dentro da janela. Encerram a sessão apenas: logout manual, inativação do usuário, alteração de senha ou 30 dias sem acesso — casos em que as sessões vigentes do usuário devem ser invalidadas. Mitigações obrigatórias, dado o risco aceito: cookie `httpOnly` + `Secure` + `SameSite=Lax`, HTTPS obrigatório (RIC-01), segredo de assinatura fora do repositório (RNF-SEG-05) e autorização sempre re-verificada no servidor (RNF-SEG-02). | RF-AUT-09..12 |
+| **RN-19** | **Base única de faturamento**: faturamento é a soma dos totais das ordens **com pagamento registrado — `PAGA` + `AGENDAMENTO_PAGO`**. Essa base é **a mesma** no Dashboard e nos Relatórios: para a mesma competência e sem filtros adicionais, os dois números devem ser **idênticos**. Ordens `AGENDADA`, `REALIZADA` e `CANCELADA` nunca compõem faturamento. Deve existir **uma única função de domínio** de cálculo de faturamento, reutilizada por ambas as telas — divergência entre as duas telas é defeito, não diferença de recorte. | RF-DSH-02, RF-REL-01, RF-REL-02 |
+| **RN-20** | **Competência = data do serviço**: toda agregação temporal (KPIs mensais, receita por mês, intervalo de meses dos relatórios) usa **`Ordem.data`** — a data em que o serviço é/foi executado. Não se usa `dataEmissao` nem a data de registro do pagamento, e o sistema **não** rastreia data de pagamento para fins de competência. Consequência aceita: uma OS de março paga em abril é receita de **março**, e o faturamento de um mês fechado pode variar retroativamente se um pagamento for registrado depois. | RF-DSH-01, RF-DSH-02, RF-REL-01, RF-REL-08 |
 
 ---
 
@@ -588,18 +591,21 @@ Vínculo entre os itens do relatório de avaliação do protótipo (`relatorio_f
 | — *(escopo novo, v2.1 — pedido do cliente)* | RF-AUT-10, RF-AUT-11, RF-AUT-12, RN-18 | Essencial / Alta | Novo |
 | — *(escopo novo, v2.1 — mobile-first)* | RES-09, RF-UX-06 (revisado), RIU-01 (revisado), RNF-USA-05 | Essencial | Novo |
 | — *(escopo novo, v2.1 — docker-first)* | RES-10, RNF-POR-02, RNF-POR-04..06, PT-07 (reescrito) | Essencial | Novo |
+| — *(alinhamento v2.2 — base de faturamento e competência)* | RF-REL-01, RF-REL-02 (revisados), RF-REL-08, RN-19, RN-20 | Alta | Protótipo (parcial) / Novo |
 
-**Resumo por maturidade de especificação** — dos **92 requisitos funcionais** do §3:
+**Resumo por maturidade de especificação** — dos **93 requisitos funcionais** do §3:
 
 | Referência | Qtde | Significado para o roadmap |
 |---|---|---|
-| Protótipo | 57 | Comportamento definido; pode ir direto para implementação. |
-| Protótipo (parcial) | 8 | Exige complemento de definição (RF-USR-03, RF-CLI-12, RF-SRV-01, RF-OS-15, RF-DSH-07, RF-UX-02, RF-UX-08, RF-UX-10). |
-| Novo | 27 | Exige especificação de UI/regra antes de entrar em sprint. |
+| Protótipo | 55 | Comportamento definido; pode ir direto para implementação. |
+| Protótipo (parcial) | 10 | Exige complemento de definição (RF-USR-03, RF-CLI-12, RF-SRV-01, RF-OS-15, RF-DSH-07, RF-REL-01, RF-REL-02, RF-UX-02, RF-UX-08, RF-UX-10). |
+| Novo | 28 | Exige especificação de UI/regra antes de entrar em sprint. |
 
-**Distribuição por prioridade:** Essencial **26** · Alta **44** · Média **17** · Baixa **5** (total 92).
+**Distribuição por prioridade:** Essencial **26** · Alta **45** · Média **17** · Baixa **5** (total 93).
 
-> **Nota:** mobile-first (RES-09) e docker-first (RES-10) são **restrições transversais**, não requisitos funcionais contáveis: elas condicionam *como* todos os 92 RFs são construídos, e por isso não alteram o total. Apenas os três requisitos de sessão (RF-AUT-10..12) somam ao §3 — daí 89 → 92.
+> **Nota:** mobile-first (RES-09) e docker-first (RES-10) são **restrições transversais**, não requisitos funcionais contáveis: elas condicionam *como* todos os RFs são construídos, e por isso não alteram o total. Somam ao §3 apenas os três requisitos de sessão (RF-AUT-10..12, v2.1) e RF-REL-08 (v2.2) — daí 89 → 92 → **93**.
+>
+> **Nota sobre RF-REL-01/02 (v2.2):** ambos passaram de *Protótipo* para **Protótipo (parcial)**. O protótipo demonstra a tela, mas com uma base de faturamento **divergente** da decidida (ele conta apenas `PAGA`); o layout é referência válida, o cálculo **não**.
 
 ---
 
@@ -641,7 +647,7 @@ Núcleo sem o qual o sistema não opera.
 | UX | RF-UX-01, RF-UX-02, RF-UX-06 |
 | *Condicional* | RF-OS-24 — obrigatório **se** RF-OS-21..23 forem construídos (critério de aceite, não item isolado) |
 
-### 9.3 Requisitos de prioridade Alta (44)
+### 9.3 Requisitos de prioridade Alta (45)
 
 Necessários para um MVP robusto.
 
@@ -654,7 +660,7 @@ Necessários para um MVP robusto.
 | Envio por WhatsApp | RF-OS-21, RF-OS-22, RF-OS-23 |
 | Agenda | RF-AGD-01, RF-AGD-02, RF-AGD-03, RF-AGD-04, RF-AGD-07 |
 | Dashboard | RF-DSH-01, RF-DSH-02, RF-DSH-03 |
-| Relatórios | RF-REL-01, RF-REL-02, RF-REL-03, RF-REL-04 |
+| Relatórios | RF-REL-01, RF-REL-02, RF-REL-03, RF-REL-04, RF-REL-08 |
 | UX | RF-UX-03, RF-UX-08, RF-UX-09 |
 
 ### 9.4 Requisitos de prioridade Média (17)
@@ -695,7 +701,7 @@ Restrições factuais de ordem que o roadmap deve respeitar (não são fases nem
 | Ordens de serviço (RF-OS-*) | Clientes (RF-CLI-01..06) + Catálogo (RF-SRV-01/02) + Usuários (funcionário atribuível) |
 | Agenda (RF-AGD-*) | Ordens (RF-OS-01, RF-OS-09) |
 | Dashboard (RF-DSH-*) | Ordens com status e valores (RF-OS-01, RF-OS-09, RF-OS-10) |
-| Relatórios (RF-REL-*) | Ordens em status `PAGA` (RF-OS-10) |
+| Relatórios (RF-REL-*) | Ordens com pagamento registrado — `PAGA` + `AGENDAMENTO_PAGO` (RF-OS-10, RN-19) |
 | Envio por WhatsApp (RF-OS-21..24) | Detalhe da OS (RF-OS-11) + marca parametrizável (RF-UX-08 / PT-09) |
 | Destaques hoje/atrasada (RF-OS-18, RF-AGD-07) | Listas de ordens e Agenda já construídas |
 | Seed de demonstração (PT-08 / RF-UX-10) | Modelo de dados completo (PT-02) |
@@ -745,6 +751,10 @@ Requisitos que **não devem entrar em implementação** antes de fechar a decis�
 | 5 | **Escopo de busca de clientes** — incluir CPF/telefone além do nome? (recomendado). | RF-CLI-09 |
 | 6 | **Contadores extras do Dashboard** — definir métricas finais (clientes ativos, total a receber, ordens de hoje/semana). | RF-DSH-07 |
 | 7 | **Geração de PDF** — biblioteca JS dedicada vs. impressão com CSS; afeta fidelidade do layout e tamanho do bundle. | RF-OS-22, RF-REL-07, RIS-05 |
+| 8 | ~~**Base de faturamento dos Relatórios** — apenas `PAGA` (como no protótipo) ou `PAGA` + `AGENDAMENTO_PAGO` (como no Dashboard)?~~ **DECIDIDA (v2.2):** **`PAGA` + `AGENDAMENTO_PAGO`**, base única compartilhada com o Dashboard. Ver RN-19. | RF-REL-01, RF-REL-02 *(resolvido)* |
+| 9 | ~~**Competência das métricas** — data do serviço ou data do pagamento?~~ **DECIDIDA (v2.2):** **data do serviço** (`Ordem.data`). O sistema não rastreia data de pagamento para competência. Ver RN-20 e RF-REL-08. | RF-DSH-01, RF-REL-01, RF-REL-08 *(resolvido)* |
+
+> **Questões levantadas na análise da tela de Relatórios (protótipo) e ainda em aberto:** (a) sob filtro de tipo de serviço, o card "Ordens pagas" deve contar **ordens que contêm** o serviço ou **linhas** do serviço? (b) o card "Tipos serviço" fica degenerado (sempre 1) quando há filtro de serviço — manter, ou substituir por outra métrica? (c) o gráfico "por mês" deve preencher meses sem receita com zero ou omiti-los, como faz o protótipo? Nenhuma bloqueia RF-REL-01/02/08.
 
 ### 10.4 Histórico de revisões
 
@@ -752,6 +762,7 @@ Requisitos que **não devem entrar em implementação** antes de fechar a decis�
 |---|---|---|
 | 1.0 | Jul/2026 | Baseline inicial consolidando protótipo, relatório de avaliação e SDD. |
 | 1.1 | Jul/2026 | Inclusão da geração de **PDF da OS sob demanda** e **envio manual por WhatsApp**, stateless e sem armazenamento (RF-OS-21..24, RN-17, RES-07, RIS-04/05, CU-11). |
+| 2.2 | Jul/2026 | **Alinhamento da base de faturamento e da competência.** Decidido, a partir da análise da tela de Relatórios do protótipo: (a) o faturamento dos **Relatórios** passa a usar a **mesma base do Dashboard** — `PAGA` + `AGENDAMENTO_PAGO` — eliminando a divergência em que o protótipo contava apenas `PAGA`; (b) a **competência** de toda métrica é a **data do serviço** (`Ordem.data`), não a data de emissão nem a de pagamento. Criadas **RN-19** (base única de faturamento, com função de domínio compartilhada) e **RN-20** (competência); criado **RF-REL-08**; revisados RF-REL-01, RF-REL-02, RF-DSH-02, RN-15 e a precedência de Relatórios no §9.6. RF-REL-01/02 rebaixados de *Protótipo* para *Protótipo (parcial)* — o layout permanece validado, o cálculo não. Fechadas as questões **#8** e **#9**. Totais: 92 → **93** RFs (Essencial 26 · Alta 45 · Média 17 · Baixa 5). |
 | 2.1 | Jul/2026 | **Mobile-first, Docker-first e sessão de longa duração.** Incluídas as restrições transversais **RES-09** (mobile-first: base 360px, breakpoint 700px como *upgrade* `min-width`, alvos de toque ≥44px) e **RES-10** (docker-first: containerizado desde o primeiro commit, paridade dev/prod, repositório entregue pronto para a infra hospedar). Criados **RF-AUT-10..12** e **RN-18** (sessão persistente de 30 dias com renovação rolante a cada 24h, encerrada apenas por logout manual, inativação, troca de senha ou 30 dias sem acesso) a pedido do cliente, com o risco de segurança formalmente aceito e mitigado. Revisados RF-AUT-09, RF-UX-06, RIU-01, RNF-POR-02/03, PT-01/02/04/05/07/08; incluídos RNF-USA-05/06, RNF-POR-04/05/06 e **PT-10** (pacote de entrega à infra). Fechada a questão em aberto **#4** (política de sessão), desbloqueando RF-AUT-09 no §9.7. Totais do §8 atualizados: 89 → **92** RFs (Essencial 26 · Alta 44 · Média 17 · Baixa 5). |
 | 2.0 | Jul/2026 | **Rebaseline para construção do zero.** Removida toda marcação de "implementado" — o protótipo passa a ser apenas referência de comportamento (RES-08). A coluna *Status* foi substituída por *Referência* (maturidade da especificação). RF-AUT-08/09 promovidos a Essencial e os RNFs deixam de ser "exclusivos de produção". §8 passa a rastrear prioridade e maturidade, sem progresso. §9 reescrito como **catálogo priorizado completo**, com pré-requisitos técnicos (PT-01..09), precedências entre blocos e bloqueios de decisão — insumo direto do roadmap. |
 

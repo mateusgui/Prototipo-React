@@ -3,7 +3,7 @@
 ## Sistema de Gestão para Lavanderia ("Sistema de Lavanderia")
 
 > **Status:** Especificação para construção do software de produção a partir do protótipo funcional.
-> **Versão do documento:** 1.1
+> **Versão do documento:** 1.2
 > **Data:** Julho de 2026
 > **Autor:** Equipe de desenvolvimento
 
@@ -174,6 +174,7 @@ Conforme `proposta_completa.md`:
 │   ├── domain/
 │   │   ├── status.ts          # máquina de status da OS
 │   │   ├── pricing.ts         # totalOrdem, agregações
+│   │   ├── faturamento.ts     # base única de faturamento (RN-19) e competência (RN-20)
 │   │   └── cpf.ts             # validarCPF, fmtCPF
 │   ├── schemas/               # schemas Zod (fonte única de validação)
 │   │   ├── cliente.ts
@@ -358,6 +359,7 @@ model ItemServico {
 - **Soft delete** em `Cliente.ativo` e `Usuario.ativo` (preserva histórico). Nunca `DELETE` físico de clientes/usuários com ordens vinculadas.
 - **`Servico` como tabela** (não const): permite ativar/desativar itens do catálogo pela administração no futuro, mantendo a seleção rápida. O `ItemServico.nome` guarda o snapshot para suportar nome customizado e imutabilidade histórica.
 - **Índices** nos campos usados por filtros/ordenações frequentes (status, data, nome do cliente).
+- **Sem campo de data de pagamento — por decisão (RN-20):** o modelo **não** possui `dataPagamento` nem equivalente. A competência de toda métrica é sempre `Ordem.data` (data do serviço), de modo que uma OS executada em março e paga em abril é receita de **março**. Essa porta fica fechada de propósito: registrar data de pagamento reabriria a ambiguidade entre competência de execução e de caixa.
 - **`Usuario.sessaoVersao`:** contador de invalidação de sessão. Como a sessão é JWT de longa duração (30 dias rolantes, §8.1.1), não há tabela de sessões para deletar — incrementar este campo é o mecanismo de revogação imediata ao inativar o usuário ou trocar sua senha (RF-AUT-12).
 
 ### 5.4 Mapa protótipo → produção
@@ -512,7 +514,9 @@ Edição de OS permitida **apenas** nos status `AGENDADA` e `AGENDAMENTO_PAGO`. 
   - `pendenteExecucao` = `AGENDAMENTO_PAGO`.
   - `pendentePagamento` = `REALIZADA`.
   - `faturamento` = total de ordens `PAGA` + `AGENDAMENTO_PAGO`.
-- **Relatórios:** consideram apenas ordens `PAGA` no intervalo de meses, filtráveis por serviço e funcionário. Receita por tipo de serviço (ranking desc) e por mês (gráfico de barras).
+- **Relatórios:** consideram as ordens **com pagamento registrado** — `PAGA` + `AGENDAMENTO_PAGO` —, **mesma base do KPI Faturamento do Dashboard** (RN-19), no intervalo de meses, filtráveis por serviço e funcionário. Receita por tipo de serviço (ranking desc) e por mês (gráfico de barras).
+- **Base única de faturamento (RN-19):** a lista de status que compõe faturamento é declarada **uma única vez**, em `src/domain/faturamento.ts`, e importada tanto pelo Dashboard quanto pelos Relatórios. Nenhuma tela redeclara esses status. Ordens `AGENDADA`, `REALIZADA` e `CANCELADA` nunca compõem faturamento.
+- **Competência (RN-20):** toda agregação temporal — KPIs mensais, receita por mês, intervalo de meses dos relatórios — usa **`Ordem.data`** (data do serviço). Nunca `dataEmissao`, nunca a data em que o pagamento foi registrado.
 
 > Todos os cálculos devem preferencialmente ser **agregados no banco** (Prisma `groupBy`/`aggregate`) em vez de carregar todas as linhas na memória, para escalar com o volume.
 
@@ -622,15 +626,18 @@ model Usuario {
 
 ### 9.4 Dashboard (admin)
 
-- Seletor de competência (mês/ano) `dashMes` governa todos os dados.
+- Seletor de competência (mês/ano) `dashMes` governa todos os dados; a competência é a **data do serviço** (`Ordem.data`, RN-20).
+- KPI **Faturamento** usa a **mesma função de domínio** dos Relatórios (`src/domain/faturamento.ts`, RN-19) — `PAGA` + `AGENDAMENTO_PAGO`.
 - KPIs clicáveis com drill-down (filtram a lista abaixo por status).
 - Lista de ordens do mês paginada (10/página); sem filtro, pendentes (agendada + agendamento_pago) primeiro por data/hora, demais por número desc.
 
 ### 9.5 Relatórios (admin)
 
 - Filtros: intervalo de meses, tipo de serviço, funcionário.
-- Indicadores: faturamento total, quantidade de ordens pagas, variedade de tipos de serviço.
+- Indicadores: faturamento total, **quantidade de ordens com pagamento registrado** (`PAGA` + `AGENDAMENTO_PAGO`, RN-19), variedade de tipos de serviço.
 - Receita por tipo de serviço (ranking desc) e por mês (gráfico de barras em tela).
+- **Critério de aceite (RF-REL-02):** para a mesma competência e sem filtros extras, o faturamento exibido nos Relatórios é **idêntico** ao KPI Faturamento do Dashboard. Divergência entre as duas telas é defeito, não diferença de recorte.
+- **Atenção — não copiar o cálculo do protótipo:** o protótipo usa base errada (apenas `PAGA`). O **layout** da tela continua válido como referência; a **lógica de cálculo, não**.
 - Sem exportação (fora de escopo).
 
 ### 9.6 Usuários (admin)
@@ -863,6 +870,7 @@ Alinhado à `proposta_completa.md`:
 | Versão | Data | Descrição |
 |---|---|---|
 | 1.0 | Jul/2026 | Especificação inicial de design para a construção do sistema de produção. |
+| 1.2 | Jul/2026 | Alinhamento ao `ERS.md` v2.2: base única de faturamento (**RN-19**) — Relatórios passam de `PAGA` para `PAGA` + `AGENDAMENTO_PAGO`, igual ao Dashboard, via função de domínio compartilhada; competência = data do serviço (**RN-20** / RF-REL-08), sem campo `dataPagamento`. Revisados §4.2, §5.3, §7.5, §9.4, §9.5. |
 | 1.1 | Jul/2026 | Alinhamento ao `ERS.md` v2.1. **Mobile-first (RES-09):** §3.1, §4.3, §10.3 reescritos partindo do viewport de 360px, com `desk:` (`min-width:701px`) como upgrade. **Docker-first (RES-10):** §13 reescrita (Dockerfile multi-stage, compose app+Postgres, entrypoint com `migrate deploy`, healthcheck, graceful shutdown, `.env.example` validado no boot, backup/restore, README de deploy); Docker movido da Fase 4 para a nova **Fase 0**; estrutura de pastas (§4.2) e stack (§3) atualizadas. **Sessão de longa duração (RN-18):** nova §8.1.1 com `maxAge` 30d + `updateAge` 24h, cookie persistente e revogação via novo campo `Usuario.sessaoVersao` (§5.2, §5.3, §11); risco de segurança registrado como aceito (§12.1). Fechada a questão em aberto #4. |
 
 ---
