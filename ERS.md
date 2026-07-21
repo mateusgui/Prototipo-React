@@ -50,6 +50,8 @@ O **Sistema de Lavanderia** é uma aplicação web responsiva de gestão operaci
 
 O produto **não** contempla (fora de escopo, conforme `proposta_completa.md`): emissão fiscal (NFS-e), gateway de pagamento, app nativo, mensageria automática (WhatsApp/SMS/e-mail), anexo de fotos, multi-empresa/filial, controle de estoque, exportação avançada (BI) e precificação automática. A **consulta automática de CEP (ViaCEP)** está prevista apenas para a Fase 4 de produção.
 
+> **Exceção — Envio manual da OS por WhatsApp (em escopo):** o compartilhamento **sob demanda** do PDF de uma Ordem de Serviço pelo WhatsApp — acionado **manualmente** pelo usuário, gerado **no cliente (navegador)**, **sem servidor de mensageria** e **sem armazenamento do arquivo** — **está em escopo** (ver RF-OS-21..24 e RN-17). Permanece **fora de escopo** a **mensageria automática** (envio disparado por eventos/agendamento, campanhas, confirmações automáticas, SMS/e-mail). A distinção é: o sistema apenas **gera e abre** o compartilhamento; **quem envia é o usuário**, pelo próprio WhatsApp.
+
 ### 1.3 Definições, acrônimos e abreviações
 
 | Termo | Definição |
@@ -67,6 +69,10 @@ O produto **não** contempla (fora de escopo, conforme `proposta_completa.md`): 
 | **Snapshot** | Cópia de dados (endereço, nome/valor do serviço) gravada na OS na emissão. |
 | **KPI** | Key Performance Indicator (indicador-chave). |
 | **MVP** | Minimum Viable Product (produto mínimo viável). |
+| **PDF da OS** | Documento PDF da Ordem de Serviço gerado **sob demanda** no navegador, sem persistência, exclusivamente para envio ao cliente. |
+| **Stateless** | Operação **sem estado persistente**: o PDF é montado em memória no cliente e descartado após o envio; nada é gravado em disco/banco. |
+| **WhatsApp deep link** | URL `https://wa.me/<telefone>?text=…` (ou `api.whatsapp.com`) que abre uma conversa com número e **texto** pré-preenchidos. Carrega apenas texto — **não** anexa arquivos. |
+| **Web Share API** | API do navegador (`navigator.share` / `navigator.canShare`) que abre a folha de compartilhamento nativa; em nível 2 permite **compartilhar arquivos** (ex.: o PDF) diretamente para o WhatsApp. |
 
 ### 1.4 Convenções de identificação
 
@@ -145,6 +151,7 @@ Estado atual: **protótipo funcional** com todos os dados em memória (reset a c
 - **RES-04** — Valor monetário sempre informado manualmente por item (sem precificação automática).
 - **RES-05** — Stack de produção definida no `SDD.md` (Next.js 15, TypeScript strict, Prisma + PostgreSQL, Zod, Auth.js, Tailwind + shadcn/ui).
 - **RES-06** — Datas de serviço são locais (Brasil); armazenamento/exibição devem evitar deslocamento de dia por timezone.
+- **RES-07** — A geração do **PDF da OS** é **stateless**: ocorre **sob demanda no cliente**, apenas no momento do envio, **sem armazenamento** do arquivo (nem local, nem em servidor/banco) e sem servidor de mensageria.
 
 ### 2.6 Suposições e dependências
 
@@ -241,6 +248,10 @@ Estado atual: **protótipo funcional** com todos os dados em memória (reset a c
 | **RF-OS-18** | Ordens de **hoje** e **atrasadas** devem receber **destaque visual** (badge/ícone) nas listas e na Agenda. | Alta | ❌ | MVP10 |
 | **RF-OS-19** | A forma de pagamento registrada deve ser **exibida** no detalhe da OS e considerada nos relatórios. | Alta | ✅ | MVP03 |
 | **RF-OS-20** | As tabelas de ordens devem permitir **ordenação por coluna** (data, valor, status) com indicador ▲/▼. | Média | ❌ | MVP09 |
+| **RF-OS-21** | O detalhe da OS deve oferecer a ação **"Enviar por WhatsApp"**, que **gera o PDF da OS sob demanda** e o disponibiliza para envio ao cliente. A geração deve ocorrer **somente** no acionamento (não antes) e o arquivo **não deve ser armazenado** (stateless). | Alta | ❌ | Nova |
+| **RF-OS-22** | O **PDF da OS** deve conter, no mínimo: número da OS, dados da lavanderia (nome/marca parametrizável), dados do cliente (nome, telefone, endereço), data/hora do serviço, funcionário responsável, **itens** (tipo, descrição do objeto, qtd, valor unitário e subtotal), **total** da OS, forma de pagamento (quando houver), status e observações. Valores em `R$ 0.000,00` e datas em `DD/MM/AAAA`. | Alta | ❌ | Nova |
+| **RF-OS-23** | O envio deve usar preferencialmente a **Web Share API** (`navigator.share` com o PDF como arquivo) para compartilhar direto no WhatsApp do dispositivo; onde indisponível (ex.: desktop), o sistema deve **baixar o PDF** e **abrir um WhatsApp deep link** (`wa.me/<telefone do cliente>`) com **texto pré-preenchido** (ex.: resumo da OS), cabendo ao usuário anexar o arquivo baixado. O telefone é obtido do cadastro do cliente e normalizado para o formato `wa.me`. | Alta | ❌ | Nova |
+| **RF-OS-24** | O fluxo de envio deve ser **stateless de ponta a ponta**: o PDF é montado em memória no cliente e **descartado** após o compartilhamento/download; o sistema **não persiste** o PDF, seu conteúdo ou o histórico de envios. | Essencial | ❌ | Nova |
 
 ### 3.6 Agenda (RF-AGD)
 
@@ -316,6 +327,7 @@ Estado atual: **protótipo funcional** com todos os dados em memória (reset a c
 | **RN-14** | **Pagamento exige forma**: transições para status pago requerem `formaPagamento` selecionada. | RF-OS-10 |
 | **RN-15** | **Cálculos**: Total da OS = Σ(qtd × valor); KPIs e faturamento conforme RF-DSH-02; relatórios sobre ordens `PAGA`. Valores monetários em `Decimal` (nunca `float`). | RF-DSH-02, RF-REL-02 |
 | **RN-16** | **Número de OS** sequencial, único e transacional (produção); no protótipo inicia em 132. | RF-OS-01 |
+| **RN-17** | **PDF stateless / envio manual**: o PDF da OS é gerado **sob demanda no cliente**, **somente** no momento do envio, **nunca é armazenado** (local, servidor ou banco) e **não gera histórico de envios**. O envio é **manual** (o sistema apenas gera e abre o compartilhamento; quem envia é o usuário). Sem servidor de mensageria e sem disparo automático. | RF-OS-21, RF-OS-24, RES-07 |
 
 ---
 
@@ -343,6 +355,8 @@ Estado atual: **protótipo funcional** com todos os dados em memória (reset a c
 - **RIS-01** *(Fase 4)* — Integração com **ViaCEP** (HTTP) para autocompletar endereço por CEP.
 - **RIS-02** *(Produção)* — **Google Maps** via URL (deep-link para navegação), sem SDK embarcado.
 - **RIS-03** *(Produção)* — **PostgreSQL** via Prisma Client; **Auth.js** para sessão.
+- **RIS-04** — **WhatsApp** via **deep link** `wa.me`/`api.whatsapp.com` (texto pré-preenchido) e/ou **Web Share API** (`navigator.share`) para compartilhar o PDF. Sem SDK/servidor de mensageria; integração 100% no cliente. Nota: o deep link `wa.me` transporta **apenas texto**; o anexo do PDF depende da Web Share API (mobile) ou de anexo manual pelo usuário (desktop).
+- **RIS-05** — **Geração de PDF no cliente** (ex.: biblioteca JS de PDF ou `window.print()` com CSS de impressão) a partir dos dados da OS em memória; sem chamada a serviço externo e sem persistência do arquivo (ver RN-17).
 
 ### 5.3 Interfaces de comunicação
 
@@ -474,6 +488,14 @@ Estado atual: **protótipo funcional** com todos os dados em memória (reset a c
 - **Fluxo principal:** criar/editar/inativar/reativar usuário e resetar senha; qualquer usuário redefine a própria senha.
 - **Requisitos:** RF-USR-01..07.
 
+### CU-11 — Enviar OS ao cliente por WhatsApp
+- **Ator:** Administrador
+- **Pré-condições:** OS existente; cliente com telefone cadastrado.
+- **Fluxo principal:** 1) abre o detalhe da OS; 2) aciona **"Enviar por WhatsApp"**; 3) o sistema **gera o PDF da OS sob demanda** (em memória, no navegador); 4) em dispositivo com **Web Share API**, abre a folha de compartilhamento nativa e o usuário escolhe o WhatsApp, com o PDF anexado; 5) o usuário confirma o envio no próprio WhatsApp; 6) o PDF é **descartado** (nada é armazenado).
+- **Fluxo alternativo (desktop / sem Web Share):** 3a) o sistema **baixa o PDF** e **abre o WhatsApp** (`wa.me/<telefone>`) com **texto pré-preenchido** (resumo da OS); 4a) o usuário **anexa** o PDF baixado e envia.
+- **Exceções:** cliente sem telefone → não é possível montar o deep link (o download/compartilhamento do PDF ainda é oferecido); compartilhamento cancelado pelo usuário → nenhuma alteração de estado.
+- **Requisitos:** RF-OS-21..24, RN-17, RES-07, RIS-04, RIS-05.
+
 ---
 
 ## 8. Matriz de rastreabilidade
@@ -542,6 +564,7 @@ Requisitos ainda **não** plenamente atendidos, ordenados por prioridade para or
 | RF-OS-17 | MVP07 | Aviso (não bloqueio) de conflito de horário do funcionário. | 30 min |
 | RF-OS-18 / RF-AGD-07 | MVP10 | Destaque de ordens de hoje/atrasadas e seções na Agenda. | 25 min |
 | RF-OS-15 | MVP02 | Completar filtro por status na lista de ordens. | 15 min |
+| RF-OS-21..24 | Nova | **Gerar PDF da OS sob demanda e enviar por WhatsApp** (stateless, sem armazenamento; Web Share API + fallback `wa.me`). | 1–2 h |
 
 ### 9.3 Média (próxima iteração)
 
@@ -602,6 +625,7 @@ Requisitos ainda **não** plenamente atendidos, ordenados por prioridade para or
 | Versão | Data | Descrição |
 |---|---|---|
 | 1.0 | Jul/2026 | Baseline inicial consolidando protótipo, relatório de pendências e SDD. |
+| 1.1 | Jul/2026 | Inclusão da geração de **PDF da OS sob demanda** e **envio manual por WhatsApp**, stateless e sem armazenamento (RF-OS-21..24, RN-17, RES-07, RIS-04/05, CU-11). |
 
 ---
 
