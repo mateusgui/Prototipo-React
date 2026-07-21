@@ -3,7 +3,7 @@
 ## Sistema de Gestão para Lavanderia ("Sistema de Lavanderia")
 
 > **Norma de referência:** ISO/IEC/IEEE 29148:2018 (adaptação do modelo IEEE 830).
-> **Versão do documento:** 2.0
+> **Versão do documento:** 2.1
 > **Data:** Julho de 2026
 > **Situação:** Baseline de requisitos para **implementação do zero** (greenfield). Nenhum requisito é considerado entregue.
 > **Autor:** Equipe de desenvolvimento
@@ -172,6 +172,8 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 - **RES-06** — Datas de serviço são locais (Brasil); armazenamento/exibição devem evitar deslocamento de dia por timezone.
 - **RES-07** — A geração do **PDF da OS** é **stateless**: ocorre **sob demanda no cliente**, apenas no momento do envio, **sem armazenamento** do arquivo (nem local, nem em servidor/banco) e sem servidor de mensageria.
 - **RES-08** — **Construção do zero**: o código do protótipo (`src/App.jsx`) **não** é reaproveitado. Ele serve exclusivamente como referência de comportamento e de layout; nenhuma decisão técnica do protótipo (estado em memória, CSS em template literal, arquivo único) é vinculante.
+- **RES-09** — **Mobile-first**: a interface é **projetada e implementada a partir do menor viewport** (referência mínima **360 × 640 px**) e progressivamente ampliada para telas maiores. O breakpoint de **700px** é ponto de *upgrade* de layout (`min-width`), não de degradação — o CSS base é o mobile e o desktop é a exceção declarada. Nenhuma funcionalidade pode existir apenas no desktop; toda tarefa do fluxo operacional deve ser completável no celular. Alvos de toque ≥ **44 × 44 px**, sem dependência de *hover* para ações essenciais.
+- **RES-10** — **Docker-first**: o projeto é **containerizado desde o primeiro commit** (PT-01), não empacotado ao final. O ambiente de desenvolvimento, os testes e a produção rodam a partir dos mesmos artefatos Docker (paridade dev/prod), e o repositório é entregue à infra de hospedagem **pronto para subir** — sem etapa posterior de "dockerizar". Nenhum passo de execução do sistema pode depender de ferramenta instalada no host além de Docker e Docker Compose.
 
 ### 2.6 Suposições e dependências
 
@@ -200,9 +202,14 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 | **RF-AUT-06** | A tela de login deve exibir **credenciais de demonstração** apenas em ambiente de demo (nunca em produção). | Baixa | Protótipo | Protótipo |
 | **RF-AUT-07** | A tela de login deve oferecer o link **"Esqueci minha senha"** (no produto final, com envio de e-mail de recuperação). | Baixa | Novo | MVP13 |
 | **RF-AUT-08** | Senhas devem ser armazenadas com **hash** (bcrypt/argon2); nunca em texto puro nem retornadas ao cliente. | Essencial | Novo | SDD §8.3 |
-| **RF-AUT-09** | A sessão deve usar **cookie httpOnly + JWT** com expiração configurável; rotas autenticadas protegidas por middleware. | Essencial | Novo | SDD §8.1 |
+| **RF-AUT-09** | A sessão deve usar **cookie httpOnly + `Secure` + `SameSite=Lax` contendo JWT assinado**, com expiração definida pela política de sessão de longa duração (RF-AUT-10/11, RN-18); rotas autenticadas protegidas por middleware. | Essencial | Novo | SDD §8.1 |
+| **RF-AUT-10** | A sessão deve ser de **longa duração**: cookie **persistente** (não de sessão de navegador) com validade de **30 dias**. O usuário deve permanecer autenticado ao fechar o navegador, reiniciar o aparelho ou ficar dias sem usar o sistema. Não deve existir expiração por inatividade curta nem timeout de tela. | Essencial | Novo | Cliente, RN-18 |
+| **RF-AUT-11** | A sessão deve ser **rolante (*rolling session*)**: a cada requisição autenticada após **24h** da última renovação, a validade é **reemitida por mais 30 dias**. Consequência pretendida: quem usa o sistema ao menos uma vez a cada 30 dias **nunca é deslogado**. | Essencial | Novo | Cliente, RN-18 |
+| **RF-AUT-12** | O encerramento de sessão deve ocorrer **apenas** por: (a) logout manual explícito do usuário; (b) inativação do usuário pelo admin; (c) alteração/reset da senha daquele usuário; (d) esgotamento da janela de 30 dias sem nenhum acesso. Nenhum outro evento pode deslogar o usuário. Os casos (b) e (c) devem invalidar as sessões vigentes daquele usuário. | Alta | Novo | RN-18, RN-11 |
 
 > **Nota:** RF-AUT-08 e RF-AUT-09 eram tratados como "exclusivos de produção" na versão 1.x. Como o sistema agora é construído do zero diretamente sobre a stack de produção, ambos são **Essenciais** e integram o núcleo de autenticação.
+>
+> **Nota sobre RF-AUT-10..12 (origem e risco aceito):** o requisito nasce de necessidade explícita do cliente — a operadora principal do sistema tem **baixa familiaridade com tecnologia** (§2.4) e relogins frequentes inviabilizam o uso. A escolha técnica é **sessão rolante de 30 dias**, e **não** um JWT de expiração muito longa (anos): um token de validade quase perpétua, se vazar, concede acesso **irrevogável**, enquanto a sessão rolante entrega o mesmo efeito percebido ("nunca desloga") preservando a capacidade de **invalidação** (RF-AUT-12). O alongamento da janela de sessão é um **risco de segurança formalmente aceito pelo cliente**, mitigado por RN-18.
 
 ### 3.2 Gestão de usuários (RF-USR) — admin
 
@@ -323,7 +330,7 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 | **RF-UX-03** | O sistema deve exibir **feedback de sucesso/erro** (toast/snackbar ~3s) em toda operação de escrita. | Alta | Novo | F10, RNF-USA-02 |
 | **RF-UX-04** | Campos **obrigatórios** devem ser sinalizados com asterisco (`*`) de forma consistente em todos os formulários. | Média | Protótipo | F14 |
 | **RF-UX-05** | Listas vazias devem exibir mensagem **orientadora** (ex.: "Nenhuma ordem agendada. Clique em '+ Nova ordem' para criar a primeira."). | Média | Novo | MVP16 |
-| **RF-UX-06** | A navegação deve ser **responsiva**: topbar no desktop (> 700px) e bottom-nav fixa + botão "Opções" no mobile (≤ 700px). | Essencial | Protótipo | SDD §10.3 |
+| **RF-UX-06** | A navegação deve ser **responsiva com construção mobile-first** (RES-09): o layout **base** é o mobile — bottom-nav fixa + botão "Opções", listas em card, formulários em coluna única; a topbar e as tabelas do desktop são aplicadas como *upgrade* progressivo a partir de `min-width: 701px`. | Essencial | Protótipo | SDD §10.3, RES-09 |
 | **RF-UX-07** | As abas de navegação devem exibir **badge de contagem** (ex.: "Agenda (7)"). | Baixa | Novo | MVP12 |
 | **RF-UX-08** | O nome/marca da empresa deve ser **parametrizável** por configuração, sem alteração de código. | Alta | Protótipo (parcial) | MVP11 |
 | **RF-UX-09** | Ações destrutivas (cancelar OS, inativar cliente, logout) devem exigir **modal de confirmação**. | Alta | Protótipo | Protótipo |
@@ -353,6 +360,7 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 | **RN-15** | **Cálculos**: Total da OS = Σ(qtd × valor); KPIs e faturamento conforme RF-DSH-02; relatórios sobre ordens `PAGA`. Valores monetários em `Decimal` (nunca `float`). | RF-DSH-02, RF-REL-02 |
 | **RN-16** | **Número de OS** sequencial, único e gerado transacionalmente (sem duplicatas em concorrência). | RF-OS-01, RNF-CON-01 |
 | **RN-17** | **PDF stateless / envio manual**: o PDF da OS é gerado **sob demanda no cliente**, **somente** no momento do envio, **nunca é armazenado** (local, servidor ou banco) e **não gera histórico de envios**. O envio é **manual** (o sistema apenas gera e abre o compartilhamento; quem envia é o usuário). Sem servidor de mensageria e sem disparo automático. | RF-OS-21, RF-OS-24, RES-07 |
+| **RN-18** | **Sessão de longa duração**: a autenticação persiste por **30 dias**, renovados a cada acesso (janela rolante, reemissão no máximo a cada 24h). O usuário **não é deslogado** por fechar o navegador, por inatividade curta ou por troca de aba/aparelho dentro da janela. Encerram a sessão apenas: logout manual, inativação do usuário, alteração de senha ou 30 dias sem acesso — casos em que as sessões vigentes do usuário devem ser invalidadas. Mitigações obrigatórias, dado o risco aceito: cookie `httpOnly` + `Secure` + `SameSite=Lax`, HTTPS obrigatório (RIC-01), segredo de assinatura fora do repositório (RNF-SEG-05) e autorização sempre re-verificada no servidor (RNF-SEG-02). | RF-AUT-09..12 |
 
 ---
 
@@ -360,7 +368,7 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 
 ### 5.1 Interfaces de usuário
 
-- **RIU-01** — Interface web responsiva, breakpoint **700px**: desktop mostra topbar + tabelas; mobile mostra bottom-nav fixa + listas em card.
+- **RIU-01** — Interface web responsiva **mobile-first** (RES-09): o layout base atende **360px** de largura (bottom-nav fixa + listas em card); a partir do breakpoint **701px** (`min-width`) aplica-se o *upgrade* para topbar + tabelas. Nenhuma media query `max-width` deve ser usada para "corrigir" o mobile.
 - **RIU-02** — Modais centralizados no desktop; slide-up a partir do rodapé no mobile.
 - **RIU-03** — Paginação fixa acima da bottom-nav no mobile, com padding compensatório no container da lista.
 - **RIU-04** — Mapa de cores de status padronizado:
@@ -423,6 +431,8 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 | **RNF-USA-02** | Feedback imediato de sucesso/erro (toast) em toda operação de escrita. |
 | **RNF-USA-03** | Interface autoexplicativa; mínimo de cliques para tarefas frequentes (atalhos no Dashboard). |
 | **RNF-USA-04** | Mensagens de erro amigáveis, sem vazar detalhes internos. |
+| **RNF-USA-05** | **Ergonomia mobile** (RES-09): alvos de toque ≥ 44 × 44px; nenhuma ação essencial dependente de *hover* ou clique-direito; sem rolagem horizontal em 360px; teclado virtual adequado ao campo (`inputmode` numérico para CPF, telefone, CEP, valor e quantidade). |
+| **RNF-USA-06** | **Continuidade de sessão** (RN-18): o usuário não deve ser interrompido por relogin durante o uso rotineiro; a tela de login só reaparece após logout manual ou 30 dias sem acesso. |
 
 ### 6.4 Confiabilidade (RNF-CON)
 
@@ -446,8 +456,11 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 | ID | Requisito |
 |---|---|
 | **RNF-POR-01** | Compatível com navegadores modernos (últimas 2 versões de Chrome, Firefox, Safari, Edge). |
-| **RNF-POR-02** | Empacotamento em Docker (build standalone) para deploy padronizado. |
-| **RNF-POR-03** | Fuso horário: datas de serviço tratadas como locais (Brasil), sem deslocamento de dia. |
+| **RNF-POR-02** | **Docker-first** (RES-10): `Dockerfile` multi-stage (deps → build → runtime) com Next.js em modo `standalone`, imagem final não-root, e `docker-compose.yml` versionado subindo **aplicação + PostgreSQL**. `docker compose up` deve ser suficiente para rodar o sistema do zero, sem Node instalado no host. |
+| **RNF-POR-03** | Fuso horário: datas de serviço tratadas como locais (Brasil), sem deslocamento de dia. Container com `TZ=America/Sao_Paulo`. |
+| **RNF-POR-04** | **Paridade dev/prod**: o mesmo `Dockerfile` serve os dois ambientes, variando apenas por *target*/variáveis. O ambiente de desenvolvimento roda em container (hot reload por volume); testes e build de CI executam na mesma imagem base. |
+| **RNF-POR-05** | **Contrato de configuração**: todas as variáveis de ambiente documentadas em `.env.example` versionado (sem valores reais); a aplicação deve **falhar no start** com mensagem clara se uma variável obrigatória estiver ausente (validação por schema). |
+| **RNF-POR-06** | **Entrega pronta para hospedagem**: o container deve expor **healthcheck** HTTP, aplicar `prisma migrate deploy` no *entrypoint* antes de aceitar tráfego, persistir o banco em **volume nomeado**, logar em `stdout`/`stderr` e encerrar com *graceful shutdown* em `SIGTERM`. Nenhum passo manual de instalação deve ser exigido da infra além de fornecer as variáveis de ambiente. |
 
 ### 6.7 Observabilidade (RNF-OBS)
 
@@ -463,9 +476,9 @@ O produto substitui controles informais (cadernos, planilhas, grupos de WhatsApp
 ### CU-01 — Autenticar no sistema
 - **Ator:** Administrador / Funcionário
 - **Pré-condições:** Usuário cadastrado e ativo.
-- **Fluxo principal:** 1) informa e-mail e senha; 2) sistema valida credenciais e status ativo; 3) sistema cria sessão e redireciona conforme papel (admin → Dashboard; funcionário → Agenda).
-- **Exceções:** credenciais inválidas → mensagem de erro; usuário inativo → login bloqueado.
-- **Requisitos:** RF-AUT-01..04, RF-AUT-08, RF-AUT-09.
+- **Fluxo principal:** 1) informa e-mail e senha; 2) sistema valida credenciais e status ativo; 3) sistema cria **sessão persistente de 30 dias** (cookie httpOnly) e redireciona conforme papel (admin → Dashboard; funcionário → Agenda); 4) nos acessos seguintes, dentro da janela, o usuário entra **direto** no sistema, sem passar pela tela de login, e a validade é renovada (RF-AUT-11).
+- **Exceções:** credenciais inválidas → mensagem de erro; usuário inativo → login bloqueado e sessões vigentes invalidadas (RF-AUT-12).
+- **Requisitos:** RF-AUT-01..04, RF-AUT-08, RF-AUT-09, RF-AUT-10, RF-AUT-11, RF-AUT-12, RN-18.
 
 ### CU-02 — Cadastrar cliente
 - **Ator:** Administrador
@@ -572,16 +585,21 @@ Vínculo entre os itens do relatório de avaliação do protótipo (`relatorio_f
 | MVP16 — Mensagens de lista vazia | RF-UX-05 | Média | Novo |
 | — *(escopo novo, v1.1)* | RF-OS-21..24, RN-17, CU-11 | Alta | Novo |
 | — *(escopo novo, v2.0)* | RF-AUT-08, RF-AUT-09 | Essencial | Novo |
+| — *(escopo novo, v2.1 — pedido do cliente)* | RF-AUT-10, RF-AUT-11, RF-AUT-12, RN-18 | Essencial / Alta | Novo |
+| — *(escopo novo, v2.1 — mobile-first)* | RES-09, RF-UX-06 (revisado), RIU-01 (revisado), RNF-USA-05 | Essencial | Novo |
+| — *(escopo novo, v2.1 — docker-first)* | RES-10, RNF-POR-02, RNF-POR-04..06, PT-07 (reescrito) | Essencial | Novo |
 
-**Resumo por maturidade de especificação** — dos **89 requisitos funcionais** do §3:
+**Resumo por maturidade de especificação** — dos **92 requisitos funcionais** do §3:
 
 | Referência | Qtde | Significado para o roadmap |
 |---|---|---|
 | Protótipo | 57 | Comportamento definido; pode ir direto para implementação. |
 | Protótipo (parcial) | 8 | Exige complemento de definição (RF-USR-03, RF-CLI-12, RF-SRV-01, RF-OS-15, RF-DSH-07, RF-UX-02, RF-UX-08, RF-UX-10). |
-| Novo | 24 | Exige especificação de UI/regra antes de entrar em sprint. |
+| Novo | 27 | Exige especificação de UI/regra antes de entrar em sprint. |
 
-**Distribuição por prioridade:** Essencial **24** · Alta **43** · Média **17** · Baixa **5** (total 89).
+**Distribuição por prioridade:** Essencial **26** · Alta **44** · Média **17** · Baixa **5** (total 92).
+
+> **Nota:** mobile-first (RES-09) e docker-first (RES-10) são **restrições transversais**, não requisitos funcionais contáveis: elas condicionam *como* todos os 92 RFs são construídos, e por isso não alteram o total. Apenas os três requisitos de sessão (RF-AUT-10..12) somam ao §3 — daí 89 → 92.
 
 ---
 
@@ -597,23 +615,24 @@ Não são requisitos de produto, mas condicionam todo o restante. Derivam do `SD
 
 | ID | Descrição | RNF/RF relacionados |
 |---|---|---|
-| **PT-01** | Bootstrap do projeto: Next.js 15 + TypeScript strict + ESLint/Prettier. | RNF-MAN-01 |
-| **PT-02** | PostgreSQL + Prisma: schema inicial, migrations versionadas e índices. | RNF-CON-03, RNF-DES-03 |
+| **PT-01** | Bootstrap do projeto **já containerizado**: Next.js 15 + TypeScript strict + ESLint/Prettier, com `Dockerfile` e `docker-compose.yml` no **primeiro commit** (RES-10). O critério de aceite do PT-01 é `docker compose up` servir a aplicação. | RNF-MAN-01, RNF-POR-02, RES-10 |
+| **PT-02** | PostgreSQL **em container** (compose, volume nomeado) + Prisma: schema inicial, migrations versionadas aplicadas no entrypoint e índices. | RNF-CON-03, RNF-DES-03, RNF-POR-06 |
 | **PT-03** | Camada de validação única com Zod (cliente + servidor). | RNF-MAN-04, RNF-SEG-03 |
-| **PT-04** | Autenticação/sessão (Auth.js), hash de senha e middleware de rotas protegidas. | RF-AUT-08, RF-AUT-09, RNF-SEG-01/02/04 |
-| **PT-05** | Design system base (Tailwind + shadcn/ui) e shell responsivo de navegação. | RF-UX-06, RIU-01..03 |
+| **PT-04** | Autenticação/sessão (Auth.js), hash de senha, middleware de rotas protegidas e **política de sessão de longa duração** (`maxAge` 30d + `updateAge` 24h, cookie persistente) com invalidação em inativação/troca de senha. | RF-AUT-08..12, RN-18, RNF-SEG-01/02/04 |
+| **PT-05** | Design system base (Tailwind + shadcn/ui) e shell de navegação **construído mobile-first** (base 360px, `min-width:701px` como upgrade). | RF-UX-06, RIU-01..03, RES-09, RNF-USA-05 |
 | **PT-06** | Módulo único de formatação BR (data, moeda, CPF, telefone, CEP). | RF-UX-01, RF-UX-02, RF-CLI-02..04, RNF-USA-01 |
-| **PT-07** | Infra de testes (unitário + integração) e pipeline de build/Docker. | RNF-MAN-02/03, RNF-POR-02 |
-| **PT-08** | Seed de dados de demonstração. | RF-UX-10 |
+| **PT-07** | Infra de testes (unitário + integração) executando **dentro do container**, e pipeline de CI que constrói e publica a imagem. | RNF-MAN-02/03, RNF-POR-04 |
+| **PT-08** | Seed de dados de demonstração, executável via comando no container. | RF-UX-10 |
 | **PT-09** | Configuração parametrizável de marca/empresa. | RF-UX-08 |
+| **PT-10** | **Pacote de entrega à infra**: `.env.example` versionado + validação de env no boot, healthcheck HTTP, entrypoint com `migrate deploy`, graceful shutdown, logs em stdout e `README` de deploy (subir, atualizar, backup/restore do volume). | RES-10, RNF-POR-05, RNF-POR-06, RNF-CON-02 |
 
-### 9.2 Requisitos Essenciais (24)
+### 9.2 Requisitos Essenciais (26)
 
 Núcleo sem o qual o sistema não opera.
 
 | Módulo | Requisitos |
 |---|---|
-| Autenticação | RF-AUT-01, RF-AUT-02, RF-AUT-03, RF-AUT-04, RF-AUT-08, RF-AUT-09 |
+| Autenticação | RF-AUT-01, RF-AUT-02, RF-AUT-03, RF-AUT-04, RF-AUT-08, RF-AUT-09, RF-AUT-10, RF-AUT-11 |
 | Clientes | RF-CLI-01, RF-CLI-02, RF-CLI-03, RF-CLI-06 |
 | Catálogo de serviços | RF-SRV-01, RF-SRV-02 |
 | Ordens de serviço | RF-OS-01, RF-OS-03, RF-OS-04, RF-OS-05, RF-OS-09, RF-OS-10 |
@@ -622,12 +641,13 @@ Núcleo sem o qual o sistema não opera.
 | UX | RF-UX-01, RF-UX-02, RF-UX-06 |
 | *Condicional* | RF-OS-24 — obrigatório **se** RF-OS-21..23 forem construídos (critério de aceite, não item isolado) |
 
-### 9.3 Requisitos de prioridade Alta (43)
+### 9.3 Requisitos de prioridade Alta (44)
 
 Necessários para um MVP robusto.
 
 | Módulo | Requisitos |
 |---|---|
+| Autenticação | RF-AUT-12 |
 | Usuários | RF-USR-01 … RF-USR-07 |
 | Clientes | RF-CLI-04, RF-CLI-05, RF-CLI-07, RF-CLI-09, RF-CLI-10, RF-CLI-11, RF-CLI-12 |
 | Ordens de serviço | RF-OS-02, RF-OS-06, RF-OS-07, RF-OS-08, RF-OS-11, RF-OS-14, RF-OS-15, RF-OS-16, RF-OS-17, RF-OS-18, RF-OS-19 |
@@ -667,6 +687,9 @@ Restrições factuais de ordem que o roadmap deve respeitar (não são fases nem
 | Bloco | Depende de |
 |---|---|
 | Qualquer módulo funcional | PT-01 … PT-05 |
+| Qualquer PT ou RF | PT-01 (ambiente Docker operante — RES-10) |
+| Sessão longa (RF-AUT-10..12) | PT-04 |
+| Entrega à infra (PT-10) | PT-01, PT-02, PT-07 |
 | Usuários (RF-USR-*) | Autenticação (RF-AUT-01..04, RF-AUT-08) |
 | Clientes (RF-CLI-*) | PT-02, PT-06 |
 | Ordens de serviço (RF-OS-*) | Clientes (RF-CLI-01..06) + Catálogo (RF-SRV-01/02) + Usuários (funcionário atribuível) |
@@ -686,7 +709,7 @@ Requisitos que **não devem entrar em implementação** antes de fechar a decis�
 | RF-SRV-03 | #1 — Administração do catálogo entra no MVP? |
 | RF-OS-01 / RN-16 | #2 — Estratégia de numeração sequencial. |
 | Modelo de dados / RN-15 | #3 — Representação monetária (`Decimal(10,2)` vs. centavos inteiros). |
-| RF-AUT-09 | #4 — Política de sessão (expiração, "lembrar-me"). |
+| ~~RF-AUT-09~~ | ~~#4 — Política de sessão~~ — **decidida na v2.1** (RF-AUT-10..12, RN-18). Desbloqueado. |
 | RF-CLI-09 | #5 — Busca inclui CPF/telefone além do nome? |
 | RF-DSH-07 | #6 — Métricas contextuais finais. |
 | RF-OS-22 / RIS-05 | #7 — Biblioteca de geração de PDF. |
@@ -718,7 +741,7 @@ Requisitos que **não devem entrar em implementação** antes de fechar a decis�
 | 1 | **Administração do catálogo de serviços no MVP** — a modelagem suporta a tabela `Servico`; confirmar se a tela entra no escopo inicial. | RF-SRV-03 |
 | 2 | **Numeração de OS** — tabela `Contador` dedicada vs. `max(numero)+1` transacional. | RF-OS-01, RN-16, RNF-CON-01 |
 | 3 | **Valor monetário** — `Decimal(10,2)` (recomendado) vs. centavos em inteiro. | RN-15, modelo de dados |
-| 4 | **Política de sessão** — expiração e "lembrar-me". | RF-AUT-09 |
+| 4 | ~~**Política de sessão** — expiração e "lembrar-me".~~ **DECIDIDA (v2.1):** sessão persistente de **30 dias com renovação rolante a cada 24h**; sem checkbox "lembrar-me" (o comportamento é sempre lembrar, por decisão do cliente). Ver RF-AUT-10..12 e RN-18. | RF-AUT-09 *(resolvido)* |
 | 5 | **Escopo de busca de clientes** — incluir CPF/telefone além do nome? (recomendado). | RF-CLI-09 |
 | 6 | **Contadores extras do Dashboard** — definir métricas finais (clientes ativos, total a receber, ordens de hoje/semana). | RF-DSH-07 |
 | 7 | **Geração de PDF** — biblioteca JS dedicada vs. impressão com CSS; afeta fidelidade do layout e tamanho do bundle. | RF-OS-22, RF-REL-07, RIS-05 |
@@ -729,6 +752,7 @@ Requisitos que **não devem entrar em implementação** antes de fechar a decis�
 |---|---|---|
 | 1.0 | Jul/2026 | Baseline inicial consolidando protótipo, relatório de avaliação e SDD. |
 | 1.1 | Jul/2026 | Inclusão da geração de **PDF da OS sob demanda** e **envio manual por WhatsApp**, stateless e sem armazenamento (RF-OS-21..24, RN-17, RES-07, RIS-04/05, CU-11). |
+| 2.1 | Jul/2026 | **Mobile-first, Docker-first e sessão de longa duração.** Incluídas as restrições transversais **RES-09** (mobile-first: base 360px, breakpoint 700px como *upgrade* `min-width`, alvos de toque ≥44px) e **RES-10** (docker-first: containerizado desde o primeiro commit, paridade dev/prod, repositório entregue pronto para a infra hospedar). Criados **RF-AUT-10..12** e **RN-18** (sessão persistente de 30 dias com renovação rolante a cada 24h, encerrada apenas por logout manual, inativação, troca de senha ou 30 dias sem acesso) a pedido do cliente, com o risco de segurança formalmente aceito e mitigado. Revisados RF-AUT-09, RF-UX-06, RIU-01, RNF-POR-02/03, PT-01/02/04/05/07/08; incluídos RNF-USA-05/06, RNF-POR-04/05/06 e **PT-10** (pacote de entrega à infra). Fechada a questão em aberto **#4** (política de sessão), desbloqueando RF-AUT-09 no §9.7. Totais do §8 atualizados: 89 → **92** RFs (Essencial 26 · Alta 44 · Média 17 · Baixa 5). |
 | 2.0 | Jul/2026 | **Rebaseline para construção do zero.** Removida toda marcação de "implementado" — o protótipo passa a ser apenas referência de comportamento (RES-08). A coluna *Status* foi substituída por *Referência* (maturidade da especificação). RF-AUT-08/09 promovidos a Essencial e os RNFs deixam de ser "exclusivos de produção". §8 passa a rastrear prioridade e maturidade, sem progresso. §9 reescrito como **catálogo priorizado completo**, com pré-requisitos técnicos (PT-01..09), precedências entre blocos e bloqueios de decisão — insumo direto do roadmap. |
 
 ---

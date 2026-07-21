@@ -3,9 +3,11 @@
 ## Sistema de Gestão para Lavanderia ("Sistema de Lavanderia")
 
 > **Status:** Especificação para construção do software de produção a partir do protótipo funcional.
-> **Versão do documento:** 1.0
+> **Versão do documento:** 1.1
 > **Data:** Julho de 2026
 > **Autor:** Equipe de desenvolvimento
+
+> **Alterações da v1.1 —** alinhamento ao `ERS.md` v2.1: **mobile-first** (RES-09), **docker-first** (RES-10) e **sessão de longa duração** (RF-AUT-10..12 / RN-18). Ver §17.
 
 ---
 
@@ -27,6 +29,7 @@ Atualmente existe um **protótipo funcional** de single-page (React + Vite), com
 
 | Documento | Conteúdo |
 |---|---|
+| `ERS.md` | **Especificação de Requisitos** — fonte de verdade do *o quê* (RFs, RNs, RNFs, restrições). Este SDD descreve o *como*. |
 | `proposta.md` | Proposta técnica (escopo funcional resumido). |
 | `proposta_completa.md` | Proposta técnica e comercial completa (escopo, fases, exclusões). |
 | `relatorio.md` / `relatorio_final.md` | Relatórios de desenvolvimento do protótipo. |
@@ -88,9 +91,9 @@ Conforme `proposta_completa.md`:
 | Formulários | **react-hook-form** + `@hookform/resolvers` | Forms tipados integrados ao Zod. |
 | Estilo | **Tailwind CSS** | CSS utilitário no próprio JSX. |
 | Componentes UI | **shadcn/ui** | Componentes copiados como código-fonte no repositório. |
-| Autenticação | **Auth.js (NextAuth v5)** — Credentials Provider | Sessão baseada em JWT/cookie; RBAC. |
+| Autenticação | **Auth.js (NextAuth v5)** — Credentials Provider | Sessão JWT/cookie **persistente de 30 dias com renovação rolante** (RN-18); RBAC. |
 | Hash de senha | **bcrypt** (ou `argon2`) | Nunca armazenar senha em texto puro. |
-| Infra | **Docker** + Postgres gerenciado / VPS | Empacotamento padronizado, pronto para escalar. |
+| Infra | **Docker + Docker Compose** (app + PostgreSQL) | **Docker-first** (RES-10): ambiente único de dev, teste e produção, desde o primeiro commit. |
 
 ### 3.1 Princípios de arquitetura
 
@@ -99,6 +102,9 @@ Conforme `proposta_completa.md`:
 - **Server-first:** por padrão, componentes são Server Components; interatividade é isolada em Client Components (`"use client"`) o menor possível.
 - **Mutations via Server Actions:** operações de escrita usam Server Actions tipadas; leituras de página usam data fetching no servidor.
 - **Camada de serviço fina:** lógica de negócio (transições de status, cálculos) isolada em módulos puros e testáveis, independentes de React e do Prisma quando possível.
+- **Mobile-first (RES-09):** todo layout é escrito partindo do menor viewport (**360px**). Em Tailwind isso significa que as classes **sem prefixo** descrevem o mobile e os prefixos `md:`/`lg:` aplicam o *upgrade* para desktop — nunca o contrário. Não se usa `max-*` para "consertar" o mobile. A tela do funcionário em campo (Agenda) é o caso de uso de referência, não o desktop do admin.
+- **Docker-first (RES-10):** o sistema roda em container desde o primeiro commit. `docker compose up` é o **único** comando necessário para levantar aplicação + banco, em qualquer máquina, sem Node ou Postgres instalados no host. Dev, CI e produção compartilham o mesmo `Dockerfile`, variando apenas por *target* e variáveis de ambiente. Nenhuma etapa de "dockerizar depois" existe no plano.
+- **Sessão longa por decisão de produto (RN-18):** a operadora principal tem baixa familiaridade com tecnologia; relogin frequente inviabiliza o uso. A janela de sessão é alongada deliberadamente, com o risco aceito e compensado por invalidação server-side (§8.1).
 
 ---
 
@@ -178,10 +184,18 @@ Conforme `proposta_completa.md`:
 │   │   ├── format.ts          # fmtData, fmtTelefone, fmtMes…
 │   │   └── utils.ts           # cn() (Tailwind merge) etc.
 │   └── types/
-├── docker-compose.yml
-├── Dockerfile
+├── docker/
+│   ├── entrypoint.sh           # prisma migrate deploy → start (ver §13)
+│   └── healthcheck.sh
+├── .dockerignore
+├── .env.example                # contrato de configuração versionado (sem segredos)
+├── docker-compose.yml          # app + postgres (base, produção-like)
+├── docker-compose.override.yml # dev: hot reload por volume, porta exposta
+├── Dockerfile                  # multi-stage: deps → builder → runner
 └── tailwind.config.ts
 ```
+
+> **Docker-first (RES-10):** os arquivos de container **não** são um apêndice do final do projeto — `Dockerfile`, `docker-compose.yml` e `.env.example` entram no **primeiro commit**, antes de qualquer módulo funcional. O critério de aceite do bootstrap é `docker compose up` servir a aplicação em `http://localhost:3000` com o banco conectado.
 
 ### 4.3 Rotas e navegação
 
@@ -198,9 +212,12 @@ O protótipo usa uma única string `aba` para renderizar abas. Na produção iss
 | `/relatorios` | Relatórios | admin |
 | `/usuarios` | Gestão de usuários | admin |
 
-- **Desktop (`> 700px`):** topbar horizontal com as abas do papel.
-- **Mobile (`≤ 700px`):** bottom-nav fixa + botão "Opções" (acesso a Usuários, reset da própria senha, sair).
+Navegação **mobile-first** (RES-09):
+
+- **Base (mobile, a partir de 360px):** bottom-nav fixa + botão "Opções" (acesso a Usuários, reset da própria senha, sair). É o layout padrão, sem media query.
+- **Upgrade (`min-width: 701px`):** topbar horizontal com as abas do papel; a bottom-nav é ocultada.
 - Guarda de rota via `middleware.ts` + verificação de papel no layout `(app)`. Funcionário que acessar rota de admin é redirecionado para `/agenda`.
+- O `middleware.ts` também **renova a sessão rolante** (§8.1) — usuário com cookie válido nunca é enviado a `/login`.
 
 ---
 
@@ -261,6 +278,7 @@ model Usuario {
   senhaHash String
   perfil    Perfil   @default(FUNCIONARIO)
   ativo     Boolean  @default(true)
+  sessaoVersao Int   @default(0)   // incrementar invalida todas as sessões do usuário (§8.1.1 / RF-AUT-12)
   ordens    Ordem[]  @relation("FuncionarioResponsavel")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -340,6 +358,7 @@ model ItemServico {
 - **Soft delete** em `Cliente.ativo` e `Usuario.ativo` (preserva histórico). Nunca `DELETE` físico de clientes/usuários com ordens vinculadas.
 - **`Servico` como tabela** (não const): permite ativar/desativar itens do catálogo pela administração no futuro, mantendo a seleção rápida. O `ItemServico.nome` guarda o snapshot para suportar nome customizado e imutabilidade histórica.
 - **Índices** nos campos usados por filtros/ordenações frequentes (status, data, nome do cliente).
+- **`Usuario.sessaoVersao`:** contador de invalidação de sessão. Como a sessão é JWT de longa duração (30 dias rolantes, §8.1.1), não há tabela de sessões para deletar — incrementar este campo é o mecanismo de revogação imediata ao inativar o usuário ou trocar sua senha (RF-AUT-12).
 
 ### 5.4 Mapa protótipo → produção
 
@@ -505,8 +524,58 @@ Edição de OS permitida **apenas** nos status `AGENDADA` e `AGENDAMENTO_PAGO`. 
 
 - **Auth.js (NextAuth v5)** com **Credentials Provider** (e-mail + senha).
 - Senha verificada contra `senhaHash` (bcrypt). Bloqueio de login para `ativo === false`.
-- Sessão via cookie httpOnly + JWT; expiração e refresh configuráveis.
+- Sessão via **cookie httpOnly + `Secure` + `SameSite=Lax`** contendo JWT assinado com `AUTH_SECRET`.
 - `middleware.ts` protege todas as rotas do grupo `(app)`; rota `/login` é pública.
+
+#### 8.1.1 Política de sessão de longa duração (RF-AUT-10..12 / RN-18)
+
+Requisito de produto: a operadora principal **não pode ser deslogada durante o uso rotineiro**. A implementação é **sessão rolante de 30 dias**:
+
+```ts
+// src/server/auth.ts
+export const { auth, handlers, signIn, signOut } = NextAuth({
+  session: {
+    strategy: "jwt",
+    maxAge:    60 * 60 * 24 * 30,  // 30 dias de validade
+    updateAge: 60 * 60 * 24,       // renova o token no máx. 1x por dia
+  },
+  cookies: {
+    sessionToken: {
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30, // cookie PERSISTENTE — sobrevive ao fechar o navegador
+      },
+    },
+  },
+  callbacks: {
+    async jwt({ token, user }) { /* injeta id, perfil e sessaoVersao */ },
+    async session({ session, token }) { /* expõe id + perfil */ },
+  },
+});
+```
+
+**Efeito pretendido:** cada acesso reemite a validade por mais 30 dias. Quem abre o sistema ao menos uma vez por mês **nunca vê a tela de login** novamente.
+
+**Por que não um JWT de expiração muito longa (anos):** um token com `exp` quase perpétuo é, na prática, uma credencial **irrevogável** — se vazar (aparelho perdido, backup do navegador, dispositivo compartilhado), não há como cortar o acesso sem trocar o `AUTH_SECRET` e derrubar **todos** os usuários. A sessão rolante entrega o mesmo efeito percebido pelo cliente e preserva a revogação.
+
+**Invalidação (RF-AUT-12).** Como a estratégia é `jwt` (sem tabela de sessões), a revogação usa um **contador de versão de sessão**:
+
+```prisma
+model Usuario {
+  // …
+  sessaoVersao Int @default(0)  // incrementar invalida todas as sessões do usuário
+}
+```
+
+- O `sessaoVersao` é gravado no token no login e **conferido no callback `jwt`** a cada renovação; divergência → sessão rejeitada.
+- Incrementam `sessaoVersao`: **inativação do usuário** (RN-11), **reset de senha pelo admin** e **troca da própria senha**.
+- Logout manual limpa o cookie.
+- Nenhum outro evento encerra a sessão — não há timeout de inatividade, nem expiração ao fechar o navegador.
+
+**Riscos aceitos e mitigações.** O alongamento da janela é risco de segurança **formalmente aceito pelo cliente** (registrado em RN-18). Mitigações obrigatórias: HTTPS/TLS em produção (§13), cookie `httpOnly` (imune a leitura por XSS), `SameSite=Lax` (CSRF), `AUTH_SECRET` forte fora do repositório, e **autorização sempre re-verificada no servidor** (§8.2) — um cookie antigo nunca concede mais permissão do que o papel atual do usuário no banco.
 
 ### 8.2 Autorização (RBAC)
 
@@ -591,11 +660,28 @@ Edição de OS permitida **apenas** nos status `AGENDADA` e `AGENDAMENTO_PAGO`. 
 
 Componente `<StatusBadge status={...} />` (equivalente ao `Badge` do protótipo).
 
-### 10.3 Responsividade
+### 10.3 Responsividade — mobile-first (RES-09)
 
-- Breakpoint **700px**: desktop (`> 700px`) mostra topbar + tabelas; mobile (`≤ 700px`) mostra bottom-nav fixa + listas em card.
-- Modais: centralizados no desktop; slide-up a partir do rodapé no mobile (padrão `Dialog`/`Sheet` do shadcn).
-- Paginação fixa acima da bottom-nav no mobile (`bottom: calc(60px + safe-area-inset)`), com padding no container para não obstruir conteúdo.
+**Regra de escrita:** classe **sem prefixo = mobile**; prefixo = *upgrade*. O breakpoint de 700px é declarado como um screen customizado do Tailwind e usado sempre em `min-width`:
+
+```ts
+// tailwind.config.ts
+theme: { extend: { screens: { desk: "701px" } } }
+```
+
+```tsx
+// certo — base mobile, upgrade no desk:
+<nav className="fixed bottom-0 flex desk:static desk:top-0" />
+// errado — parte do desktop e corrige para baixo:
+<nav className="static max-desk:fixed max-desk:bottom-0" />
+```
+
+- **Base (mobile, ≥ 360px):** bottom-nav fixa + listas em card + formulários em coluna única. Sem rolagem horizontal em nenhuma tela.
+- **`desk:` (≥ 701px):** topbar + tabelas + formulários em duas colunas.
+- **Modais:** `Sheet` (slide-up do rodapé) como padrão mobile; `Dialog` centralizado a partir de `desk:`.
+- **Paginação** fixa acima da bottom-nav no mobile (`bottom: calc(60px + env(safe-area-inset-bottom))`), com padding compensatório no container.
+- **Ergonomia de toque:** alvos ≥ 44 × 44px; nenhuma ação essencial dependente de `hover`; `inputmode` numérico em CPF, telefone, CEP, quantidade e valor.
+- **Verificação obrigatória:** toda tela é validada em **360 × 640** antes de ser considerada pronta — o desktop é a checagem secundária, não a primária.
 
 ### 10.4 Formulários
 
@@ -622,8 +708,10 @@ Mutations expostas como **Server Actions** tipadas; retornam resultado discrimin
 | `criarUsuario(input)` | hash de senha | admin |
 | `editarUsuario(id, {nome,email})` | | admin |
 | `inativarUsuario(id)` / `reativarUsuario(id)` | | admin |
-| `resetarSenhaUsuario(id, nova)` | | admin |
-| `alterarPropriaSenha(nova)` | | qualquer autenticado |
+| `resetarSenhaUsuario(id, nova)` | **incrementa `sessaoVersao`** (§8.1.1) | admin |
+| `alterarPropriaSenha(nova)` | **incrementa `sessaoVersao`** (§8.1.1) | qualquer autenticado |
+
+> `inativarUsuario` também incrementa `sessaoVersao`, derrubando as sessões vigentes daquele usuário (RF-AUT-12 / RN-11).
 
 Leituras (páginas) fazem data fetching no servidor com queries tipadas em `src/server/queries`, aplicando filtros de papel.
 
@@ -637,7 +725,9 @@ Leituras (páginas) fazem data fetching no servidor com queries tipadas em `src/
 - Autorização re-verificada no servidor em toda mutation e query sensível.
 - Validação Zod obrigatória no servidor (defesa contra bypass do cliente).
 - Proteção contra enumeração (IDs `cuid()`), CSRF (proteções do Auth.js/Server Actions), e injeção (Prisma parametrizado).
-- Variáveis sensíveis (`DATABASE_URL`, `AUTH_SECRET`) via ambiente/secret manager, nunca no repositório.
+- Variáveis sensíveis (`DATABASE_URL`, `AUTH_SECRET`) via ambiente/secret manager, nunca no repositório. `.env.example` versionado contém apenas **nomes** e formato, jamais valores reais.
+- **Sessão de longa duração — risco aceito (RN-18):** a janela de 30 dias rolantes é uma decisão de produto do cliente, não um descuido. Compensações obrigatórias: cookie `httpOnly`+`Secure`+`SameSite=Lax`, HTTPS obrigatório, `AUTH_SECRET` de alta entropia fora do repositório, e revogação imediata via `sessaoVersao` (§8.1.1). A autorização é sempre reconsultada no servidor — um cookie de 29 dias atrás não carrega permissões antigas.
+- Imagem Docker executa como **usuário não-root**; segredos entram por variável de ambiente em runtime, nunca por `ARG`/`COPY` na imagem (evita vazamento em camadas).
 
 ### 12.2 Performance e escala
 
@@ -656,7 +746,8 @@ Leituras (páginas) fazem data fetching no servidor com queries tipadas em `src/
 
 - TypeScript `strict`, sem `any`; ESLint + Prettier.
 - Testes unitários da camada de domínio (máquina de status, CPF, cálculos).
-- Testes de integração das Server Actions críticas (criação de OS, transições, autorização).
+- Testes de integração das Server Actions críticas (criação de OS, transições, autorização) — incluindo **revogação de sessão** (`sessaoVersao`) ao inativar usuário e trocar senha.
+- Testes executados **dentro do container** (RES-10), contra o Postgres do compose: mesma imagem em dev, CI e produção.
 
 ### 12.5 Observabilidade
 
@@ -665,12 +756,62 @@ Leituras (páginas) fazem data fetching no servidor com queries tipadas em `src/
 
 ---
 
-## 13. Infraestrutura e deploy
+## 13. Infraestrutura e deploy — Docker-first (RES-10)
 
-- **Docker:** `Dockerfile` para a app Next.js (build standalone) e `docker-compose.yml` para app + PostgreSQL em desenvolvimento.
-- **Produção:** VPS/cloud com PostgreSQL gerenciado ou containerizado; SSL/HTTPS; backups automatizados; renovação de certificados.
-- **CI/CD (recomendado):** pipeline com typecheck, lint, testes, `prisma migrate deploy` e build/deploy do container.
-- **Seed:** cria o usuário admin inicial e os serviços do catálogo (Limpeza e Higienização, Impermeabilização, Lavagem de Tapetes, Lavagem de Cortinas).
+O sistema é containerizado **desde o primeiro commit**. O objetivo é que, ao final do desenvolvimento, o repositório seja entregue à infra de hospedagem **pronto para subir**, sem etapa de adaptação.
+
+### 13.1 Dockerfile (multi-stage)
+
+Três estágios, imagem final mínima:
+
+| Estágio | Conteúdo |
+|---|---|
+| `deps` | `node:22-alpine`; instala dependências a partir de `package-lock.json` (`npm ci`) — camada cacheável. |
+| `builder` | `prisma generate` + `next build` com `output: "standalone"` no `next.config.ts`. |
+| `runner` | Copia apenas `.next/standalone`, `.next/static`, `public` e o Prisma Client. Roda como usuário **não-root** (`node`). `ENV TZ=America/Sao_Paulo`. Expõe `3000`. |
+
+### 13.2 Compose
+
+- **`docker-compose.yml` (base, produção-like):** serviço `app` + serviço `db` (`postgres:17-alpine`) com **volume nomeado** (`pgdata`) e `healthcheck` (`pg_isready`). O `app` declara `depends_on: db: condition: service_healthy`.
+- **`docker-compose.override.yml` (dev, aplicado automaticamente):** monta o código como volume para **hot reload**, expõe a porta do Postgres para inspeção e roda `next dev`.
+- Um único comando para desenvolver: `docker compose up`. Nenhum Node, npm ou Postgres instalado no host.
+
+### 13.3 Entrypoint e ciclo de vida
+
+`docker/entrypoint.sh`, executado antes de aceitar tráfego:
+
+1. Valida as variáveis de ambiente obrigatórias — **falha o boot** com mensagem clara se faltar alguma.
+2. Aguarda o banco ficar saudável.
+3. Executa `prisma migrate deploy` (idempotente; nunca `migrate dev` em produção).
+4. Sobe o servidor Next.js.
+
+Complementos exigidos pela hospedagem:
+
+- **Healthcheck HTTP:** rota `/api/health` (verifica app + conexão com o banco), declarada no `HEALTHCHECK` do Dockerfile e no compose.
+- **Graceful shutdown:** `SIGTERM` encerra conexões e o Prisma Client antes de sair.
+- **Logs** estruturados em `stdout`/`stderr` (sem arquivo de log dentro do container).
+- **Persistência** exclusivamente no volume `pgdata` — o container da app é descartável.
+
+### 13.4 Contrato de configuração (`.env.example`)
+
+Versionado no repositório, **sem valores reais**, e validado por schema Zod no boot:
+
+| Variável | Papel |
+|---|---|
+| `DATABASE_URL` | Conexão PostgreSQL. |
+| `AUTH_SECRET` | Assinatura do JWT de sessão (alta entropia; rotacioná-la desloga todos). |
+| `AUTH_URL` / `NEXTAUTH_URL` | URL pública da aplicação. |
+| `NODE_ENV` | `production` em produção (ativa cookie `Secure`). |
+| `TZ` | `America/Sao_Paulo`. |
+| `EMPRESA_NOME` | Marca parametrizável (RF-UX-08). |
+
+### 13.5 Produção e entrega à infra
+
+- **Produção:** VPS/cloud rodando o mesmo compose, atrás de proxy reverso (Nginx/Traefik/Caddy) com **SSL/HTTPS** e renovação automática de certificado. PostgreSQL containerizado (volume) ou gerenciado — a troca é apenas o `DATABASE_URL`.
+- **CI/CD:** pipeline com typecheck, lint e testes **executados dentro da imagem**, seguido de build e publicação do container; deploy é `pull` + `up -d`.
+- **Backups:** dump automatizado do volume `pgdata` com retenção definida, e procedimento de **restore testado** (não apenas documentado).
+- **`README` de deploy** entregue junto: subir, atualizar versão, aplicar migrations, backup e restore.
+- **Seed:** cria o usuário admin inicial e os serviços do catálogo (Limpeza e Higienização, Impermeabilização, Lavagem de Tapetes, Lavagem de Cortinas), executável via comando no container.
 
 ---
 
@@ -680,10 +821,13 @@ Alinhado à `proposta_completa.md`:
 
 | Fase | Entrega | Conteúdo |
 |---|---|---|
-| **1 — Fundação** | Acesso e cadastros | Auth + RBAC, gestão de usuários, cadastro de clientes, base do schema Prisma/migrations, layout responsivo. |
+| **0 — Bootstrap containerizado** | Ambiente | `Dockerfile` + compose (app + Postgres) + `.env.example` + entrypoint com migrations, no primeiro commit. Critério de aceite: `docker compose up` serve a aplicação. |
+| **1 — Fundação** | Acesso e cadastros | Auth + RBAC, **sessão longa rolante de 30 dias** (§8.1.1), gestão de usuários, cadastro de clientes, schema Prisma/migrations, **shell mobile-first**. |
 | **2 — Núcleo operacional** | Operação diária | Catálogo de serviços, ordens de serviço com máquina de status, Agenda. |
 | **3 — Gestão e inteligência** | Visão gerencial | Dashboard de KPIs e Relatórios de faturamento. |
-| **4 — Integração, infra e entrega** | Produção | Consulta de CEP (ViaCEP), Docker, publicação em produção, ajustes finais, backups/SSL. |
+| **4 — Integração e publicação** | Produção | Consulta de CEP (ViaCEP), publicação em produção (proxy + SSL), backups/restore testados, `README` de deploy, ajustes finais. |
+
+> **Mudança na v1.1:** Docker deixou de ser item da Fase 4 e virou a **Fase 0** (RES-10). A Fase 4 agora trata de *publicar* o que já está containerizado, não de containerizar.
 
 ---
 
@@ -697,6 +841,10 @@ Alinhado à `proposta_completa.md`:
 | **Soft delete** | Inativação lógica (`ativo = false`) preservando o histórico. |
 | **Snapshot** | Cópia de dados (endereço, nome/valor do serviço) gravada na OS no momento da emissão. |
 | **RBAC** | Role-Based Access Control — controle de acesso por papel (admin/funcionário). |
+| **Mobile-first** | Método de construção em que o layout base atende o menor viewport e telas maiores recebem *upgrades* progressivos (`min-width`), nunca o inverso. |
+| **Docker-first** | Prática de containerizar o projeto desde o primeiro commit, com dev, CI e produção rodando os mesmos artefatos — em oposição a "empacotar em Docker no final". |
+| **Sessão rolante** | Sessão cuja validade é reemitida a cada acesso, de modo que o uso regular a mantém indefinidamente ativa, sem torná-la irrevogável. |
+| **`sessaoVersao`** | Contador em `Usuario` que, ao ser incrementado, invalida todos os JWTs de sessão emitidos anteriormente para aquele usuário. |
 
 ---
 
@@ -705,8 +853,17 @@ Alinhado à `proposta_completa.md`:
 1. **Tabela `Contador` dedicada vs. `max(numero)+1`** para o número sequencial de OS — definir na implementação da Fase 2.
 2. **Escopo do catálogo de serviços administrável** — o protótipo usa lista fixa; a modelagem já suporta gestão futura via tabela `Servico`. Confirmar se a administração do catálogo entra no MVP.
 3. **Valor monetário: `Decimal` vs. centavos em inteiro** — recomendação: `Decimal(10,2)`; confirmar padrão do time.
-4. **Política de expiração de sessão** e "lembrar-me" — definir na Fase 1.
-5. **Fuso horário** — datas de serviço são locais (Brasil). Padronizar armazenamento/exibição para evitar deslocamentos de dia (o protótipo formata datas por string split justamente para evitar dependência de timezone).
+4. ~~**Política de expiração de sessão** e "lembrar-me".~~ **RESOLVIDA (v1.1):** sessão persistente de **30 dias com renovação rolante a cada 24h**, revogável por `sessaoVersao`. Sem checkbox "lembrar-me" — o comportamento é sempre lembrar, por decisão do cliente. Ver §8.1.1, `ERS.md` RF-AUT-10..12 / RN-18.
+5. **Fuso horário** — datas de serviço são locais (Brasil). Padronizar armazenamento/exibição para evitar deslocamentos de dia (o protótipo formata datas por string split justamente para evitar dependência de timezone). Container fixa `TZ=America/Sao_Paulo` (§13.4).
+
+---
+
+## 17. Histórico de revisões
+
+| Versão | Data | Descrição |
+|---|---|---|
+| 1.0 | Jul/2026 | Especificação inicial de design para a construção do sistema de produção. |
+| 1.1 | Jul/2026 | Alinhamento ao `ERS.md` v2.1. **Mobile-first (RES-09):** §3.1, §4.3, §10.3 reescritos partindo do viewport de 360px, com `desk:` (`min-width:701px`) como upgrade. **Docker-first (RES-10):** §13 reescrita (Dockerfile multi-stage, compose app+Postgres, entrypoint com `migrate deploy`, healthcheck, graceful shutdown, `.env.example` validado no boot, backup/restore, README de deploy); Docker movido da Fase 4 para a nova **Fase 0**; estrutura de pastas (§4.2) e stack (§3) atualizadas. **Sessão de longa duração (RN-18):** nova §8.1.1 com `maxAge` 30d + `updateAge` 24h, cookie persistente e revogação via novo campo `Usuario.sessaoVersao` (§5.2, §5.3, §11); risco de segurança registrado como aceito (§12.1). Fechada a questão em aberto #4. |
 
 ---
 
